@@ -1542,18 +1542,24 @@ function deleteGalleryPost(idOrFbId){
   const idx = galleryPosts.findIndex(p=>p.fbId===idOrFbId||String(p.id)===String(idOrFbId));
   if(idx>-1){
     const post = galleryPosts[idx];
+    const originalFbId = post.fbId;
     const trashItem = {...post, sourceType:'gallery', deletedAt:Date.now()};
-    // Firebase: 원본 삭제 + 휴지통 추가
-    if(post.fbId && window.fbDeleteGalleryPost){
-      window.fbDeleteGalleryPost(post.fbId).catch(e=>console.log('gallery del err',e));
-    }
-    if(window.fbMoveToTrash){
-      window.fbMoveToTrash(trashItem).then(fbId=>{
-        trashItem.fbId = fbId;
-      }).catch(e=>console.log('trash move err',e));
-    }
-    trashItems.push(trashItem);
+    delete trashItem.fbId;
+
     galleryPosts.splice(idx,1);
+
+    // 휴지통 먼저 저장 → 완료 후 원본 삭제
+    if(window.fbMoveToTrash){
+      window.fbMoveToTrash(trashItem).then(newFbId=>{
+        trashItem.fbId=newFbId;
+        trashItems.push(trashItem);
+        if(originalFbId && window.fbDeleteGalleryPost){
+          window.fbDeleteGalleryPost(originalFbId).catch(e=>console.log('gallery del err',e));
+        }
+      }).catch(e=>console.log('trash move err',e));
+    } else {
+      trashItems.push(trashItem);
+    }
   }
   hideGalleryEditor();
 }
@@ -1641,7 +1647,7 @@ function showGalleryEditor(){
             display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:var(--text-light);
             overflow:hidden;">썸네일</div>
           <div style="flex:1;position:relative;">
-            <input type="file" accept="image/*" onchange="previewGalleryThumb(this)"
+            <input type="file" accept="image/*" id="gp-thumb-file" onchange="previewGalleryThumb(this)"
               style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;"/>
             <div style="background:var(--sky-pale);border:1px dashed var(--sky);border-radius:7px;
               padding:8px;font-size:0.68rem;color:var(--sky-dark);text-align:center;cursor:pointer;">
@@ -1660,7 +1666,7 @@ function showGalleryEditor(){
           이미지가 없습니다
         </div>
         <div style="position:relative;">
-          <input type="file" accept="image/*" onchange="previewGalleryImg(this)"
+          <input type="file" accept="image/*" id="gp-img-file" onchange="previewGalleryImg(this)"
             style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;"/>
           <div style="background:var(--sky-pale);border:1px dashed var(--sky);border-radius:7px;
             padding:6px;font-size:0.68rem;color:var(--sky-dark);text-align:center;cursor:pointer;">
@@ -1715,27 +1721,51 @@ function saveGalleryPost(){
   const btn=document.querySelector('[onclick="saveGalleryPost()"]');
   if(btn){btn.textContent='저장 중...';btn.disabled=true;}
 
-  // 이미지 파일들을 Cloudinary에 업로드
   const thumbFile=document.getElementById('gp-thumb-file')?.files?.[0];
   const imgFile=document.getElementById('gp-img-file')?.files?.[0];
 
-  Promise.all([
-    thumbFile && window.uploadToCloudinary ? window.uploadToCloudinary(thumbFile) : Promise.resolve(galleryThumbData),
-    imgFile && window.uploadToCloudinary ? window.uploadToCloudinary(imgFile) : Promise.resolve(galleryImgData),
-  ]).then(async ([thumbUrl, imgUrl])=>{
-    const post={id:Date.now(),title,body,thumb:thumbUrl||'',img:imgUrl||'',date};
-    // Firebase에 저장
+  // 이미지가 하나도 없으면 경고
+  if(!thumbFile && !imgFile){
+    alert('썸네일 또는 그림 이미지를 선택해주세요!');
+    if(btn){btn.textContent='💾 게시하기';btn.disabled=false;}
+    return;
+  }
+
+  // Cloudinary 업로드 (파일 있는 것만)
+  const thumbPromise = thumbFile && window.uploadToCloudinary
+    ? window.uploadToCloudinary(thumbFile)
+    : Promise.resolve('');
+  const imgPromise = imgFile && window.uploadToCloudinary
+    ? window.uploadToCloudinary(imgFile)
+    : Promise.resolve('');
+
+  Promise.all([thumbPromise, imgPromise]).then(async([thumbUrl, imgUrl])=>{
+    // 둘 다 업로드 실패면 중단
+    if(!thumbUrl && !imgUrl){
+      alert('이미지 업로드에 실패했어요. Cloudinary 설정을 확인해주세요.');
+      if(btn){btn.textContent='💾 게시하기';btn.disabled=false;}
+      return;
+    }
+    const post={id:Date.now(),title,body,thumb:thumbUrl||imgUrl,img:imgUrl||thumbUrl,date};
     if(window.fbSaveGalleryPost){
-      try{ const fbId=await window.fbSaveGalleryPost(post); post.fbId=fbId; }
-      catch(e){ console.log('fb gallery save err',e); }
+      try{
+        const fbId=await window.fbSaveGalleryPost(post);
+        post.fbId=fbId;
+        console.log('✅ 갤러리 게시글 저장 완료, fbId:', fbId);
+      } catch(e){
+        console.error('fb gallery save err',e);
+        alert('Firebase 저장에 실패했어요: '+e.message);
+        if(btn){btn.textContent='💾 게시하기';btn.disabled=false;}
+        return;
+      }
     }
     galleryPosts.unshift(post);
     galleryThumbData='';galleryImgData='';
     hideGalleryEditor();
   }).catch(e=>{
-    console.error(e);
+    console.error('Cloudinary 업로드 에러:',e);
     if(btn){btn.textContent='💾 게시하기';btn.disabled=false;}
-    alert('저장 중 오류가 발생했어요. 다시 시도해주세요.');
+    alert('이미지 업로드 중 오류가 발생했어요:\n'+e.message);
   });
 }
 
@@ -2217,15 +2247,28 @@ function boardGoBack(){
 function deleteBoardPost(id){
   if(!confirm('휴지통으로 이동할까요?'))return;
   const post=boardPosts.find(p=>p.id===id);
-  if(post){
-    const ti={...post,sourceType:'board',deletedAt:Date.now()};
-    if(post.fbId&&window.fbDeleteBoardPost) window.fbDeleteBoardPost(post.fbId).catch(()=>{});
-    if(window.fbMoveToTrash) window.fbMoveToTrash(ti).then(fid=>{ti.fbId=fid;}).catch(()=>{});
-    trashItems.push(ti);
-  }
   const idx=boardPosts.findIndex(p=>p.id===id);
   if(idx>-1)boardPosts.splice(idx,1);
   boardGoBack();
+
+  if(post){
+    const originalFbId=post.fbId;
+    const ti={...post,sourceType:'board',deletedAt:Date.now()};
+    delete ti.fbId;
+
+    // 휴지통 먼저 저장 → 완료 후 원본 삭제
+    if(window.fbMoveToTrash){
+      window.fbMoveToTrash(ti).then(newFbId=>{
+        ti.fbId=newFbId;
+        trashItems.push(ti);
+        if(originalFbId&&window.fbDeleteBoardPost){
+          window.fbDeleteBoardPost(originalFbId).catch(()=>{});
+        }
+      }).catch(()=>{});
+    } else {
+      trashItems.push(ti);
+    }
+  }
 }
 
 function boardNewPost(){
@@ -2367,24 +2410,33 @@ function deleteCurrentNote(){
   if(!currentNoteId)return;
   if(!confirm('휴지통으로 이동할까요?'))return;
   const note=notesData.find(n=>n.id===currentNoteId);
-  if(note){
-    const trashItem = {...note, sourceType:'note', deletedAt:Date.now()};
-    // Firebase: 원본 삭제 + 휴지통 추가
-    if(note.fbId && window.fbDeleteNote){
-      window.fbDeleteNote(note.fbId).catch(e=>console.log('note del err',e));
-    }
-    if(window.fbMoveToTrash){
-      window.fbMoveToTrash(trashItem).then(fbId=>{
-        trashItem.fbId=fbId;
-      }).catch(e=>console.log('trash move err',e));
-    }
-    trashItems.push(trashItem);
-  }
+
+  // 로컬에서 먼저 제거
   const idx=notesData.findIndex(n=>n.id===currentNoteId);
   if(idx>-1)notesData.splice(idx,1);
   const dl=document.getElementById('diary-list');
   if(dl)dl.innerHTML=renderDiaryList();
   notesGoBack();
+
+  // Firebase: 휴지통에 먼저 저장 → 완료 후 원본 삭제 (순서 중요!)
+  if(note){
+    const originalFbId=note.fbId;
+    const trashItem={...note,sourceType:'note',deletedAt:Date.now()};
+    delete trashItem.fbId;
+
+    if(window.fbMoveToTrash){
+      window.fbMoveToTrash(trashItem).then(newFbId=>{
+        trashItem.fbId=newFbId;
+        trashItems.push(trashItem);
+        // 휴지통 저장 완료 후에 원본 삭제
+        if(originalFbId && window.fbDeleteNote){
+          window.fbDeleteNote(originalFbId).catch(e=>console.log('note del err',e));
+        }
+      }).catch(e=>console.log('trash move err',e));
+    } else {
+      trashItems.push(trashItem);
+    }
+  }
 }
 
 var notesAdminUnlocked = false;
