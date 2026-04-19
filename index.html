@@ -645,6 +645,28 @@ input[type=range]{flex:1;accent-color:var(--sky);}
     await db.collection('boardPosts').doc(fbId).delete();
   };
 
+  // ── Trash (휴지통) ──
+  window.fbMoveToTrash = async function(item) {
+    const ref = await db.collection('trash').add({...item, deletedAt: Date.now()});
+    return ref.id;
+  };
+  window.fbLoadTrash = async function() {
+    const snap = await db.collection('trash').orderBy('deletedAt','desc').get();
+    return snap.docs.map(d=>({fbId:d.id,...d.data()}));
+  };
+  window.fbDeleteTrashItem = async function(fbId) {
+    await db.collection('trash').doc(fbId).delete();
+  };
+  window.fbRestoreFromTrash = async function(item) {
+    // 원래 컬렉션으로 복원
+    const col = item.sourceType==='note' ? 'notes'
+               : item.sourceType==='gallery' ? 'galleryPosts'
+               : 'boardPosts';
+    const {fbId, deletedAt, sourceType, ...data} = item;
+    const ref = await db.collection(col).add(data);
+    return ref.id;
+  };
+
   // ── Chat Messages (실시간) ──
   window.fbSendChatMsg = async function(msg) {
     await db.collection('chatMessages').add(msg);
@@ -769,6 +791,14 @@ input[type=range]{flex:1;accent-color:var(--sky);}
         }
       });
     } catch(e){ console.log('chat listen:', e); }
+
+    try {
+      // 휴지통
+      const trashItems = await window.fbLoadTrash();
+      if(trashItems.length && window.trashItems){
+        window.trashItems.splice(0, window.trashItems.length, ...trashItems);
+      }
+    } catch(e){ console.log('trash load:', e); }
 
     console.log('✅ Firebase 연결 완료!');
   });
@@ -1508,13 +1538,21 @@ function deleteGalleryItem(idx){
 }
 
 function deleteGalleryPost(idOrFbId){
-  if(!confirm('이 게시글을 삭제할까요?')) return;
+  if(!confirm('휴지통으로 이동할까요?')) return;
   const idx = galleryPosts.findIndex(p=>p.fbId===idOrFbId||String(p.id)===String(idOrFbId));
   if(idx>-1){
     const post = galleryPosts[idx];
+    const trashItem = {...post, sourceType:'gallery', deletedAt:Date.now()};
+    // Firebase: 원본 삭제 + 휴지통 추가
     if(post.fbId && window.fbDeleteGalleryPost){
       window.fbDeleteGalleryPost(post.fbId).catch(e=>console.log('gallery del err',e));
     }
+    if(window.fbMoveToTrash){
+      window.fbMoveToTrash(trashItem).then(fbId=>{
+        trashItem.fbId = fbId;
+      }).catch(e=>console.log('trash move err',e));
+    }
+    trashItems.push(trashItem);
     galleryPosts.splice(idx,1);
   }
   hideGalleryEditor();
@@ -2024,11 +2062,37 @@ function checkPW(){
   }
 }
 
+/* ── trashItems 전역 ── */
+var trashItems = [];
+window.trashItems = trashItems;
+var trashTabView = 'board';
+
 function buildBoard(){
   boardView=null;
   return `<div style="display:flex;flex-direction:column;height:100%;">
-    ${renderBoardList()}
+    <div style="display:flex;border-bottom:2px solid var(--sky-light);flex-shrink:0;background:var(--sky-ultra);">
+      <button id="tab-board" onclick="switchTrashTab('board')"
+        style="flex:1;padding:8px;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;
+        background:transparent;color:var(--sky-dark);border-bottom:2px solid var(--sky);margin-bottom:-2px;
+        font-family:'Noto Sans KR',sans-serif;">📋 게시판</button>
+      <button id="tab-trash" onclick="switchTrashTab('trash')"
+        style="flex:1;padding:8px;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;
+        background:transparent;color:var(--gray3);font-family:'Noto Sans KR',sans-serif;">🗑 휴지통 (${trashItems.length})</button>
+    </div>
+    <div id="trash-tab-content" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+      ${renderBoardList()}
+    </div>
   </div>`;
+}
+
+function switchTrashTab(tab){
+  trashTabView=tab;
+  const boardBtn=document.getElementById('tab-board');
+  const trashBtn=document.getElementById('tab-trash');
+  if(boardBtn){boardBtn.style.color=tab==='board'?'var(--sky-dark)':'var(--gray3)';boardBtn.style.borderBottom=tab==='board'?'2px solid var(--sky)':'none';}
+  if(trashBtn){trashBtn.style.color=tab==='trash'?'var(--sky-dark)':'var(--gray3)';trashBtn.style.borderBottom=tab==='trash'?'2px solid var(--sky)':'none';trashBtn.textContent='🗑 휴지통 ('+trashItems.length+')';}
+  const tc=document.getElementById('trash-tab-content');
+  if(tc) tc.innerHTML=tab==='board'?renderBoardList():renderTrashList();
 }
 
 function renderBoardList(){
@@ -2040,10 +2104,10 @@ function renderBoardList(){
       padding:4px 11px;font-size:0.68rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 새 글</button>
   </div>
   <div style="flex:1;overflow-y:auto;">
-    ${boardPosts.map(p=>`
+    ${boardPosts.length===0?'<div style="padding:24px;text-align:center;font-size:0.78rem;color:var(--gray3);">게시글이 없어요</div>':
+      boardPosts.map(p=>`
       <div onclick="openBoardPost(${p.id})" style="padding:12px 14px;border-bottom:1px solid var(--gray);
-        cursor:pointer;transition:background 0.1s;" onmouseover="this.style.background='#f0f9ff'"
-        onmouseout="this.style.background=''">
+        cursor:pointer;" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background=''">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
           <span style="font-size:0.82rem;font-weight:700;color:var(--text);">${p.title}</span>
           <span style="font-size:0.6rem;color:var(--gray3);">조회 ${p.views}</span>
@@ -2051,6 +2115,77 @@ function renderBoardList(){
         <div style="font-size:0.65rem;color:var(--text-light);">${p.author} · ${p.date}</div>
       </div>`).join('')}
   </div>`;
+}
+
+function renderTrashList(){
+  const typeLabel={note:'📝 일기',gallery:'🖼 그림',board:'📋 게시판'};
+  return `
+  <div style="padding:8px 14px;background:#fff8f0;border-bottom:1px solid #ffe0c0;flex-shrink:0;
+    display:flex;align-items:center;justify-content:space-between;">
+    <span style="font-size:0.68rem;color:#c06020;">🗑 ${trashItems.length}개 — 완전 삭제 시 복구 불가</span>
+    ${trashItems.length>0?'<button onclick="emptyTrashAll()" style="background:#e05555;color:#fff;border:none;border-radius:5px;padding:3px 9px;font-size:0.65rem;cursor:pointer;font-family:Noto Sans KR,sans-serif;">전체 삭제</button>':''}
+  </div>
+  <div style="flex:1;overflow-y:auto;">
+    ${trashItems.length===0?'<div style="padding:24px;text-align:center;font-size:0.78rem;color:var(--gray3);">휴지통이 비어있어요 🗑</div>':
+      trashItems.map((item,i)=>`
+      <div style="padding:11px 14px;border-bottom:1px solid var(--gray);display:flex;align-items:center;gap:8px;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+            <span style="font-size:0.58rem;background:#f0e0d0;color:#c06020;border-radius:4px;padding:1px 5px;">${typeLabel[item.sourceType]||'파일'}</span>
+            <span style="font-size:0.78rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.title||item.name||'제목 없음'}</span>
+          </div>
+          <div style="font-size:0.6rem;color:var(--gray3);">${item.date||''}</div>
+        </div>
+        <button onclick="restoreTrashItem(${i})" style="background:var(--sky-pale);border:1px solid var(--sky-light);border-radius:5px;padding:3px 7px;font-size:0.62rem;color:var(--sky-dark);cursor:pointer;font-family:Noto Sans KR,sans-serif;flex-shrink:0;">↩ 복원</button>
+        <button onclick="permanentDelete(${i})" style="background:#fff0f0;border:1px solid #ffaaaa;border-radius:5px;padding:3px 7px;font-size:0.62rem;color:#e05555;cursor:pointer;font-family:Noto Sans KR,sans-serif;flex-shrink:0;">완전삭제</button>
+      </div>`).join('')}
+  </div>`;
+}
+
+function permanentDelete(i){
+  if(!confirm('완전히 삭제할까요? 복구가 불가능해요!'))return;
+  const item=trashItems[i];
+  if(item&&item.fbId&&window.fbDeleteTrashItem) window.fbDeleteTrashItem(item.fbId).catch(e=>console.log(e));
+  trashItems.splice(i,1);
+  const tc=document.getElementById('trash-tab-content');
+  if(tc) tc.innerHTML=renderTrashList();
+  const tb=document.getElementById('tab-trash');
+  if(tb) tb.textContent='🗑 휴지통 ('+trashItems.length+')';
+}
+
+function emptyTrashAll(){
+  if(!confirm('휴지통의 '+trashItems.length+'개 항목을 모두 완전 삭제할까요?'))return;
+  trashItems.forEach(item=>{if(item&&item.fbId&&window.fbDeleteTrashItem) window.fbDeleteTrashItem(item.fbId).catch(()=>{});});
+  trashItems.length=0;
+  const tc=document.getElementById('trash-tab-content');
+  if(tc) tc.innerHTML=renderTrashList();
+  const tb=document.getElementById('tab-trash');
+  if(tb) tb.textContent='🗑 휴지통 (0)';
+}
+
+async function restoreTrashItem(i){
+  const item=trashItems[i];
+  if(!item)return;
+  const {fbId:trashFbId,deletedAt,sourceType,...data}=item;
+  if(sourceType==='note'){
+    if(window.fbSaveNote){const nid=await window.fbSaveNote(data);data.fbId=nid;}
+    notesData.unshift(data);
+    const dl=document.getElementById('diary-list');
+    if(dl) dl.innerHTML=renderDiaryList();
+  } else if(sourceType==='gallery'){
+    if(window.fbSaveGalleryPost){const nid=await window.fbSaveGalleryPost(data);data.fbId=nid;}
+    galleryPosts.unshift(data);
+  } else if(sourceType==='board'){
+    if(window.fbSaveBoardPost){const nid=await window.fbSaveBoardPost(data);data.fbId=nid;}
+    boardPosts.unshift(data);
+  }
+  if(trashFbId&&window.fbDeleteTrashItem) window.fbDeleteTrashItem(trashFbId).catch(()=>{});
+  trashItems.splice(i,1);
+  const tc=document.getElementById('trash-tab-content');
+  if(tc) tc.innerHTML=renderTrashList();
+  const tb=document.getElementById('tab-trash');
+  if(tb) tb.textContent='🗑 휴지통 ('+trashItems.length+')';
+  alert('복원됐어요! ✅');
 }
 
 function openBoardPost(id){
@@ -2061,19 +2196,13 @@ function openBoardPost(id){
   if(!content)return;
   post.views++;
   content.innerHTML=`<div style="display:flex;flex-direction:column;height:100%;">
-    <div style="padding:8px 12px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);
-      display:flex;align-items:center;gap:8px;flex-shrink:0;">
-      <button onclick="boardGoBack()" style="background:linear-gradient(to bottom,#fff,#e0f0fb);
-        border:1px solid var(--sky-light);border-radius:5px;padding:3px 10px;font-size:0.68rem;
-        color:var(--sky-dark);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">◂ 목록</button>
-      <button onclick="deleteBoardPost(${id})" style="background:#fff5f5;border:1px solid #ffd0d0;
-        border-radius:5px;padding:3px 8px;font-size:0.65rem;color:#e05555;cursor:pointer;
-        font-family:'Noto Sans KR',sans-serif;margin-left:auto;">🗑 삭제</button>
+    <div style="padding:8px 12px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);display:flex;align-items:center;gap:8px;flex-shrink:0;">
+      <button onclick="boardGoBack()" style="background:linear-gradient(to bottom,#fff,#e0f0fb);border:1px solid var(--sky-light);border-radius:5px;padding:3px 10px;font-size:0.68rem;color:var(--sky-dark);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">◂ 목록</button>
+      <button onclick="deleteBoardPost(${id})" style="background:#fff5f5;border:1px solid #ffd0d0;border-radius:5px;padding:3px 8px;font-size:0.65rem;color:#e05555;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-left:auto;">🗑 삭제</button>
     </div>
     <div style="flex:1;overflow-y:auto;padding:20px;">
       <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:6px;">${post.title}</div>
-      <div style="font-size:0.65rem;color:var(--gray3);padding-bottom:12px;border-bottom:1px solid var(--gray);margin-bottom:14px;">
-        ${post.author} · ${post.date} · 조회 ${post.views}</div>
+      <div style="font-size:0.65rem;color:var(--gray3);padding-bottom:12px;border-bottom:1px solid var(--gray);margin-bottom:14px;">${post.author} · ${post.date} · 조회 ${post.views}</div>
       <div style="font-size:0.83rem;line-height:1.9;color:var(--text);white-space:pre-line;">${post.content}</div>
     </div>
   </div>`;
@@ -2081,15 +2210,18 @@ function openBoardPost(id){
 
 function boardGoBack(){
   boardView=null;
-  const content=document.getElementById('content-trash');
-  if(content) content.innerHTML=`<div style="display:flex;flex-direction:column;height:100%;">${renderBoardList()}</div>`;
+  const c=document.getElementById('content-trash');
+  if(c) c.innerHTML=buildBoard();
 }
 
 function deleteBoardPost(id){
-  if(!confirm('이 게시글을 삭제할까요?'))return;
+  if(!confirm('휴지통으로 이동할까요?'))return;
   const post=boardPosts.find(p=>p.id===id);
-  if(post?.fbId && window.fbDeleteBoardPost){
-    window.fbDeleteBoardPost(post.fbId).catch(e=>console.log('board del err',e));
+  if(post){
+    const ti={...post,sourceType:'board',deletedAt:Date.now()};
+    if(post.fbId&&window.fbDeleteBoardPost) window.fbDeleteBoardPost(post.fbId).catch(()=>{});
+    if(window.fbMoveToTrash) window.fbMoveToTrash(ti).then(fid=>{ti.fbId=fid;}).catch(()=>{});
+    trashItems.push(ti);
   }
   const idx=boardPosts.findIndex(p=>p.id===id);
   if(idx>-1)boardPosts.splice(idx,1);
@@ -2103,22 +2235,13 @@ function boardNewPost(){
   const content=document.getElementById('content-trash');
   if(!content)return;
   content.innerHTML=`<div style="display:flex;flex-direction:column;height:100%;">
-    <div style="padding:8px 12px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);
-      display:flex;align-items:center;gap:8px;flex-shrink:0;">
-      <button onclick="boardGoBack()" style="background:linear-gradient(to bottom,#fff,#e0f0fb);
-        border:1px solid var(--sky-light);border-radius:5px;padding:3px 10px;font-size:0.68rem;
-        color:var(--sky-dark);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">◂ 취소</button>
-      <button onclick="saveBoardPost(${id},'${date}')" style="background:var(--sky);color:#fff;border:none;
-        border-radius:5px;padding:3px 10px;font-size:0.68rem;cursor:pointer;margin-left:auto;
-        font-family:'Noto Sans KR',sans-serif;">💾 저장</button>
+    <div style="padding:8px 12px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);display:flex;align-items:center;gap:8px;flex-shrink:0;">
+      <button onclick="boardGoBack()" style="background:linear-gradient(to bottom,#fff,#e0f0fb);border:1px solid var(--sky-light);border-radius:5px;padding:3px 10px;font-size:0.68rem;color:var(--sky-dark);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">◂ 취소</button>
+      <button onclick="saveBoardPost(${id},'${date}')" style="background:var(--sky);color:#fff;border:none;border-radius:5px;padding:3px 10px;font-size:0.68rem;cursor:pointer;margin-left:auto;font-family:'Noto Sans KR',sans-serif;">💾 저장</button>
     </div>
     <div style="flex:1;padding:16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;">
-      <input id="board-new-title" placeholder="제목" style="border:1px solid var(--sky-light);
-        border-radius:6px;padding:8px 12px;font-size:0.88rem;font-weight:700;outline:none;
-        font-family:'Noto Sans KR',sans-serif;"/>
-      <textarea id="board-new-body" placeholder="내용을 작성하세요..." style="flex:1;border:1px solid var(--sky-light);
-        border-radius:6px;padding:10px 12px;font-size:0.82rem;line-height:1.8;outline:none;resize:none;
-        min-height:200px;font-family:'Noto Sans KR',sans-serif;"></textarea>
+      <input id="board-new-title" placeholder="제목" style="border:1px solid var(--sky-light);border-radius:6px;padding:8px 12px;font-size:0.88rem;font-weight:700;outline:none;font-family:'Noto Sans KR',sans-serif;"/>
+      <textarea id="board-new-body" placeholder="내용을 작성하세요..." style="flex:1;border:1px solid var(--sky-light);border-radius:6px;padding:10px 12px;font-size:0.82rem;line-height:1.8;outline:none;resize:none;min-height:200px;font-family:'Noto Sans KR',sans-serif;"></textarea>
     </div>
   </div>`;
 }
@@ -2127,11 +2250,7 @@ function saveBoardPost(id,date){
   const title=document.getElementById('board-new-title')?.value.trim()||'제목 없음';
   const body=document.getElementById('board-new-body')?.value.trim()||'';
   const post={id,title,author:'관리자',date,views:0,content:body};
-  if(window.fbSaveBoardPost){
-    window.fbSaveBoardPost(post).then(fbId=>{
-      if(fbId) post.fbId=fbId;
-    }).catch(e=>console.log('board save err',e));
-  }
+  if(window.fbSaveBoardPost) window.fbSaveBoardPost(post).then(fid=>{if(fid)post.fbId=fid;}).catch(()=>{});
   boardPosts.unshift(post);
   boardGoBack();
 }
@@ -2246,11 +2365,20 @@ function saveCurrentNote(){
 
 function deleteCurrentNote(){
   if(!currentNoteId)return;
-  if(!confirm('이 일기를 삭제할까요?'))return;
+  if(!confirm('휴지통으로 이동할까요?'))return;
   const note=notesData.find(n=>n.id===currentNoteId);
-  // Firebase 삭제
-  if(note?.fbId && window.fbDeleteNote){
-    window.fbDeleteNote(note.fbId).catch(e=>console.log('note del err',e));
+  if(note){
+    const trashItem = {...note, sourceType:'note', deletedAt:Date.now()};
+    // Firebase: 원본 삭제 + 휴지통 추가
+    if(note.fbId && window.fbDeleteNote){
+      window.fbDeleteNote(note.fbId).catch(e=>console.log('note del err',e));
+    }
+    if(window.fbMoveToTrash){
+      window.fbMoveToTrash(trashItem).then(fbId=>{
+        trashItem.fbId=fbId;
+      }).catch(e=>console.log('trash move err',e));
+    }
+    trashItems.push(trashItem);
   }
   const idx=notesData.findIndex(n=>n.id===currentNoteId);
   if(idx>-1)notesData.splice(idx,1);
@@ -3269,7 +3397,6 @@ window.chatRooms=chatRooms;
 window.profileData=profileData;
 window.renderMessages=renderMessages;
 window.scrollChat=scrollChat;
-
 function applyThemePreset(key){
   const th = THEMES[key];
   if(!th) return;
