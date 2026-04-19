@@ -1,0 +1,2797 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>My Blog Desktop</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@300;400&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --sky:#5bb8f5;
+  --sky-dark:#3a9ee0;
+  --sky-light:#a8d8f8;
+  --sky-pale:#e8f5fd;
+  --sky-ultra:#f0f9ff;
+  --white:#ffffff;
+  --gray:#e8edf2;
+  --gray2:#d0d8e0;
+  --gray3:#a0aab4;
+  --text:#2c3a48;
+  --text-light:#5a6b7a;
+  --shadow:rgba(80,130,180,0.18);
+  --shadow2:rgba(60,100,150,0.28);
+  --accent:#f5a623;
+  --red:#f05555;
+  --green:#4cbb70;
+  --yellow:#f5c842;
+}
+
+html,body{width:100%;height:100%;overflow:hidden;user-select:none;}
+
+body{
+  font-family:'Noto Sans KR',sans-serif;
+  background: linear-gradient(160deg,#d6eeff 0%,#eaf6ff 40%,#f5faff 70%,#fff 100%);
+  position:relative;
+}
+
+/* ── WALLPAPER PIXEL CLOUDS ── */
+.wallpaper{
+  position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;
+}
+.cloud{
+  position:absolute;
+  image-rendering:pixelated;
+}
+.cloud svg{image-rendering:pixelated;}
+.c1{top:7%;left:8%;animation:drift1 28s linear infinite;}
+.c2{top:16%;left:52%;animation:drift2 38s linear infinite 6s;}
+.c3{top:32%;left:72%;animation:drift3 33s linear infinite 12s;}
+@keyframes drift1{from{transform:translateX(0);}to{transform:translateX(-130vw);}}
+@keyframes drift2{from{transform:translateX(0) scale(1.35);}to{transform:translateX(-130vw) scale(1.35);}}
+@keyframes drift3{from{transform:translateX(0) scale(0.88);}to{transform:translateX(-130vw) scale(0.88);}}
+
+/* ── TASKBAR ── */
+#taskbar{
+  position:fixed;bottom:0;left:0;right:0;height:48px;z-index:9000;
+  background:linear-gradient(to bottom,rgba(120,195,250,0.92),rgba(80,160,230,0.96));
+  backdrop-filter:blur(12px);
+  border-top:1px solid rgba(255,255,255,0.5);
+  display:flex;flex-direction:row;align-items:center;padding:0 12px;gap:0;
+  box-shadow:0 -2px 16px rgba(80,140,200,0.2);
+  overflow:hidden;
+}
+.taskbar-start{
+  display:flex;align-items:center;gap:7px;flex-shrink:0;
+  background:linear-gradient(135deg,#fff 0%,#d8efff 100%);
+  border:1px solid rgba(255,255,255,0.9);
+  border-radius:20px;padding:5px 14px;cursor:pointer;
+  font-size:0.78rem;font-weight:700;color:var(--sky-dark);
+  box-shadow:0 2px 8px var(--shadow);transition:all 0.15s;
+  white-space:nowrap;
+}
+.taskbar-start:hover{background:linear-gradient(135deg,#fff 0%,#c0e4ff 100%);}
+.taskbar-start .logo{font-size:1.1rem;}
+.taskbar-divider{width:1px;height:28px;background:rgba(255,255,255,0.4);margin:0 8px;flex-shrink:0;}
+#taskbar-btns{
+  display:flex;flex-direction:row;align-items:center;
+  gap:4px;flex:1;overflow:hidden;min-width:0;
+}
+.taskbar-btn{
+  display:flex;align-items:center;gap:5px;flex-shrink:0;
+  background:rgba(255,255,255,0.25);
+  border:1px solid rgba(255,255,255,0.4);
+  border-radius:6px;padding:4px 10px;cursor:pointer;
+  font-size:0.72rem;color:#fff;
+  transition:all 0.15s;white-space:nowrap;
+  max-width:130px;overflow:hidden;text-overflow:ellipsis;
+  height:32px;box-sizing:border-box;
+}
+.taskbar-btn:hover,.taskbar-btn.active{background:rgba(255,255,255,0.45);}
+.taskbar-btn .icon{font-size:0.85rem;flex-shrink:0;}
+.taskbar-spacer{flex-shrink:0;width:8px;}
+.taskbar-clock{
+  color:#fff;font-size:0.72rem;font-weight:500;text-align:right;
+  padding:0 8px;line-height:1.5;min-width:68px;flex-shrink:0;
+}
+
+/* ── DESKTOP ICONS ── */
+#desktop{position:fixed;inset:0;bottom:48px;z-index:1;padding:20px;}
+.icon-grid{
+  display:flex;flex-direction:column;flex-wrap:wrap;
+  align-content:flex-start;gap:6px;height:100%;
+}
+.desk-icon{
+  width:82px;display:flex;flex-direction:column;align-items:center;
+  gap:5px;padding:8px 6px;border-radius:10px;cursor:pointer;
+  transition:background 0.15s;
+}
+.desk-icon:hover{background:rgba(91,184,245,0.18);}
+.desk-icon.selected{background:rgba(91,184,245,0.3);}
+.icon-img{
+  width:52px;height:52px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.8rem;
+  box-shadow:0 3px 12px var(--shadow2);
+  transition:transform 0.15s;
+  position:relative;
+}
+.desk-icon:hover .icon-img{transform:scale(1.08);}
+.desk-icon:active .icon-img{transform:scale(0.95);}
+.icon-label{
+  font-size:0.68rem;color:var(--text);text-align:center;
+  text-shadow:0 1px 3px rgba(255,255,255,0.9);
+  font-weight:500;line-height:1.3;
+  max-width:78px;word-break:keep-all;
+}
+
+/* icon colors — pixel style */
+.icon-img{
+  width:56px;height:56px;
+  display:flex;align-items:center;justify-content:center;
+  image-rendering:pixelated;
+  transition:transform 0.15s;
+  position:relative;
+  background:none !important;
+  box-shadow:none !important;
+  border-radius:0 !important;
+  filter:drop-shadow(2px 4px 0px rgba(80,120,180,0.22));
+}
+.desk-icon:hover .icon-img{transform:scale(1.12) translateY(-2px);}
+.desk-icon:active .icon-img{transform:scale(0.93);}
+.icon-img svg{width:56px;height:56px;image-rendering:pixelated;display:block;}
+
+/* ── WINDOWS ── */
+.win{
+  position:fixed;z-index:100;
+  min-width:300px;min-height:200px;
+  display:flex;flex-direction:column;
+  border-radius:12px;overflow:hidden;
+  box-shadow:0 8px 40px var(--shadow2),0 2px 8px var(--shadow);
+  border:1px solid rgba(255,255,255,0.8);
+  animation:winOpen 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  background:#fff;
+}
+@keyframes winOpen{
+  from{opacity:0;transform:scale(0.88);}
+  to{opacity:1;transform:scale(1);}
+}
+.win.minimized{display:none;}
+.win.focused{z-index:500;box-shadow:0 16px 60px var(--shadow2),0 4px 16px var(--shadow);}
+
+/* titlebar */
+.win-title{
+  height:36px;
+  background:linear-gradient(to bottom,#a8d8f8 0%,#78c1f0 100%);
+  display:flex;align-items:center;padding:0 10px;gap:8px;
+  cursor:move;flex-shrink:0;border-bottom:1px solid rgba(80,160,230,0.3);
+}
+.win-btns{display:flex;gap:5px;flex-shrink:0;}
+.win-btn{
+  width:14px;height:14px;border-radius:50%;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0;transition:filter 0.15s;
+}
+.win-btn:hover{filter:brightness(0.85);}
+.win-btn.close{background:var(--red);}
+.win-btn.minimize{background:var(--yellow);}
+.win-btn.maximize{background:var(--green);}
+.win-titletext{
+  flex:1;font-size:0.75rem;font-weight:700;color:#1a5a8a;text-align:center;
+  margin-right:46px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* menubar (address bar area) */
+.win-menubar{
+  height:30px;
+  background:linear-gradient(to bottom,#e8f5fd,#d8effa);
+  border-bottom:1px solid var(--sky-light);
+  display:flex;align-items:center;padding:0 8px;gap:6px;flex-shrink:0;
+}
+.menu-nav-btn{
+  background:linear-gradient(to bottom,#fff,#e0f0fb);
+  border:1px solid var(--sky-light);border-radius:4px;
+  padding:2px 8px;font-size:0.65rem;color:var(--sky-dark);
+  cursor:pointer;transition:all 0.1s;
+}
+.menu-nav-btn:hover{background:linear-gradient(to bottom,#c8e8fa,#b0d8f5);}
+.win-addr{
+  flex:1;height:20px;
+  background:#fff;border:1px solid var(--sky-light);border-radius:10px;
+  padding:0 10px;font-size:0.65rem;color:var(--text-light);
+  display:flex;align-items:center;gap:5px;
+}
+.win-addr .addr-icon{font-size:0.7rem;color:var(--sky);}
+.win-addr-text{color:var(--sky-dark);font-size:0.65rem;}
+
+/* content */
+.win-content{
+  flex:1;overflow:auto;position:relative;background:#fff;
+}
+.win-content::-webkit-scrollbar{width:6px;}
+.win-content::-webkit-scrollbar-thumb{background:var(--sky-light);border-radius:3px;}
+
+/* resize handle */
+.win-resize{
+  position:absolute;bottom:0;right:0;width:16px;height:16px;cursor:se-resize;z-index:10;
+  display:flex;align-items:flex-end;justify-content:flex-end;padding:3px;
+}
+.win-resize::after{
+  content:'';display:block;width:8px;height:8px;
+  border-right:2px solid var(--gray2);border-bottom:2px solid var(--gray2);
+  border-radius:0 0 2px 0;
+}
+
+/* ══ GALLERY WINDOW ══ */
+.gallery-toolbar{
+  padding:8px 12px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.view-btn{
+  background:#fff;border:1px solid var(--gray2);border-radius:5px;
+  padding:4px 10px;font-size:0.68rem;color:var(--text);cursor:pointer;transition:all 0.1s;
+}
+.view-btn:hover,.view-btn.active{background:var(--sky);color:#fff;border-color:var(--sky);}
+.gallery-inner{padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;}
+.gallery-inner.list-view{grid-template-columns:1fr;}
+
+.gal-thumb{
+  position:relative;border-radius:8px;overflow:hidden;cursor:pointer;
+  box-shadow:0 2px 8px var(--shadow);transition:all 0.2s;
+  border:2px solid transparent;
+}
+.gal-thumb:hover{transform:translateY(-2px);box-shadow:0 6px 20px var(--shadow2);border-color:var(--sky-light);}
+.gal-thumb.selected{border-color:var(--sky);}
+.gal-thumb .thumb-img{width:100%;aspect-ratio:1;object-fit:cover;display:block;}
+.gal-thumb .thumb-ph{width:100%;aspect-ratio:1;display:block;}
+.gal-thumb .thumb-label{
+  position:absolute;bottom:0;left:0;right:0;
+  background:linear-gradient(transparent,rgba(0,0,0,0.5));
+  color:#fff;font-size:0.6rem;padding:8px 6px 4px;
+}
+
+/* list view item */
+.list-item{
+  display:flex;align-items:center;gap:10px;padding:6px 10px;
+  border-radius:6px;cursor:pointer;transition:background 0.1s;border-bottom:1px solid var(--gray);
+}
+.list-item:hover{background:var(--sky-pale);}
+.list-thumb{
+  width:40px;height:40px;border-radius:6px;overflow:hidden;flex-shrink:0;
+}
+.list-thumb-ph{width:100%;height:100%;display:block;}
+.list-info{flex:1;}
+.list-name{font-size:0.75rem;font-weight:500;color:var(--text);}
+.list-meta{font-size:0.62rem;color:var(--text-light);}
+.list-size{font-size:0.65rem;color:var(--text-light);white-space:nowrap;}
+
+/* upload zone */
+.upload-drop{
+  margin:12px;border:2px dashed var(--sky-light);border-radius:10px;
+  padding:20px;text-align:center;cursor:pointer;
+  background:var(--sky-ultra);transition:all 0.2s;position:relative;
+}
+.upload-drop:hover{border-color:var(--sky);background:#e0f0ff;}
+.upload-drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-drop .up-icon{font-size:2rem;margin-bottom:6px;display:block;}
+.upload-drop p{font-size:0.72rem;color:var(--text-light);}
+.upload-drop strong{color:var(--sky-dark);}
+
+/* status bar */
+.win-statusbar{
+  height:22px;background:linear-gradient(to bottom,#d8eefa,#c8e4f5);
+  border-top:1px solid var(--sky-light);
+  display:flex;align-items:center;padding:0 10px;gap:12px;flex-shrink:0;
+}
+.statusbar-txt{font-size:0.62rem;color:var(--text-light);}
+
+/* ══ MUSIC WINDOW ══ */
+.music-body{padding:20px;background:linear-gradient(160deg,#f0f9ff,#fff);}
+.now-playing{
+  background:linear-gradient(135deg,#74c0fc,#339af0);
+  border-radius:12px;padding:16px;margin-bottom:16px;color:#fff;
+  display:flex;gap:14px;align-items:center;
+}
+.np-art{
+  width:60px;height:60px;border-radius:10px;
+  background:rgba(255,255,255,0.2);
+  display:flex;align-items:center;justify-content:center;font-size:2rem;
+  flex-shrink:0;
+  animation:none;
+}
+.np-art.spinning{animation:spin 4s linear infinite;}
+@keyframes spin{from{transform:rotate(0);}to{transform:rotate(360deg);}}
+.np-info{flex:1;}
+.np-title{font-size:0.9rem;font-weight:700;margin-bottom:3px;}
+.np-artist{font-size:0.7rem;opacity:0.85;}
+.np-controls{display:flex;align-items:center;gap:10px;margin-top:10px;}
+.np-btn{background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:50%;
+  width:30px;height:30px;cursor:pointer;font-size:0.75rem;transition:all 0.15s;
+  display:flex;align-items:center;justify-content:center;}
+.np-btn:hover{background:rgba(255,255,255,0.4);}
+.np-btn.play{width:38px;height:38px;font-size:1rem;background:rgba(255,255,255,0.3);}
+.progress-wrap{
+  background:rgba(255,255,255,0.25);height:4px;border-radius:2px;
+  margin-top:10px;cursor:pointer;position:relative;
+}
+.progress-fill{height:100%;background:#fff;border-radius:2px;width:30%;transition:width 0.5s;}
+.progress-dot{
+  position:absolute;top:50%;right:calc(70% - 5px);transform:translateY(-50%);
+  width:10px;height:10px;border-radius:50%;background:#fff;pointer-events:none;
+}
+.time-row{display:flex;justify-content:space-between;font-size:0.6rem;opacity:0.8;margin-top:3px;}
+.pl-list{background:#f7fbff;border-radius:8px;overflow:hidden;border:1px solid var(--gray);}
+.pl-item{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;
+  cursor:pointer;border-bottom:1px solid var(--gray);transition:background 0.1s;
+}
+.pl-item:hover{background:var(--sky-pale);}
+.pl-item.active{background:#e0f2ff;}
+.pl-num{font-size:0.62rem;color:var(--text-light);width:18px;}
+.pl-name{flex:1;font-size:0.75rem;color:var(--text);}
+.pl-item.active .pl-name{color:var(--sky-dark);font-weight:700;}
+.pl-dur{font-size:0.62rem;color:var(--text-light);}
+.vol-row{display:flex;align-items:center;gap:8px;margin-top:10px;}
+.vol-lbl{font-size:0.65rem;color:var(--text-light);}
+input[type=range]{flex:1;accent-color:var(--sky);}
+
+/* ══ NOTES WINDOW ══ */
+.notes-wrap{display:flex;flex-direction:column;height:100%;position:relative;overflow:hidden;}
+
+/* ── list view ── */
+.notes-list-view{display:flex;flex-direction:column;height:100%;}
+.notes-list-toolbar{
+  padding:7px 12px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0;
+}
+.notes-list-toolbar span{font-size:0.68rem;color:var(--text-light);}
+.new-note-btn{
+  background:var(--sky);color:#fff;border:none;border-radius:5px;
+  padding:4px 11px;font-size:0.68rem;cursor:pointer;transition:background 0.15s;font-family:'Noto Sans KR',sans-serif;
+}
+.new-note-btn:hover{background:var(--sky-dark);}
+.diary-list{flex:1;overflow-y:auto;}
+.diary-item{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:12px 14px;border-bottom:1px solid var(--gray);
+  cursor:pointer;transition:background 0.12s;
+}
+.diary-item:hover{background:var(--sky-pale);}
+.diary-item:active{background:#d0eaf8;}
+.diary-date-badge{
+  flex-shrink:0;width:44px;text-align:center;
+  background:linear-gradient(135deg,var(--sky-light),var(--sky));
+  border-radius:8px;padding:5px 2px;
+}
+.diary-date-badge .day{font-size:1.1rem;font-weight:700;color:#1a5a8a;line-height:1;}
+.diary-date-badge .mon{font-size:0.55rem;color:#1a5a8a;opacity:0.8;letter-spacing:0.05em;}
+.diary-item-body{flex:1;min-width:0;}
+.diary-item-title{font-size:0.82rem;font-weight:700;color:var(--text);margin-bottom:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.diary-item-preview{font-size:0.7rem;color:var(--text-light);line-height:1.5;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.diary-item-meta{font-size:0.6rem;color:var(--gray3);margin-top:4px;}
+.diary-item-arrow{flex-shrink:0;color:var(--gray3);font-size:0.8rem;align-self:center;}
+
+/* ── detail view ── */
+.notes-detail-view{display:flex;flex-direction:column;height:100%;}
+.notes-detail-toolbar{
+  padding:5px 10px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);
+  display:flex;align-items:center;gap:6px;flex-shrink:0;
+}
+.back-btn{
+  background:linear-gradient(to bottom,#fff,#e0f0fb);border:1px solid var(--sky-light);
+  border-radius:5px;padding:3px 10px;font-size:0.68rem;color:var(--sky-dark);
+  cursor:pointer;transition:all 0.1s;display:flex;align-items:center;gap:4px;
+  font-family:'Noto Sans KR',sans-serif;
+}
+.back-btn:hover{background:linear-gradient(to bottom,#c8e8fa,#b0d8f5);}
+.fmt-btn{
+  background:#fff;border:1px solid var(--gray2);border-radius:4px;
+  padding:3px 8px;font-size:0.7rem;cursor:pointer;transition:all 0.1s;
+}
+.fmt-btn:hover{background:var(--sky-pale);}
+.detail-spacer{flex:1;}
+.detail-paper{
+  flex:1;overflow-y:auto;
+  background:linear-gradient(to bottom,#fffef8 0%,#fff 100%);
+  padding:20px 24px;
+}
+.detail-title-input{
+  width:100%;border:none;outline:none;
+  font-family:'Noto Serif KR',serif;font-size:1.05rem;font-weight:700;
+  color:var(--text);margin-bottom:6px;background:transparent;
+}
+.detail-meta-row{font-size:0.62rem;color:var(--gray3);margin-bottom:14px;padding-bottom:10px;
+  border-bottom:1px solid var(--gray);}
+.detail-body{
+  width:100%;border:none;outline:none;resize:none;
+  font-family:'Noto Serif KR',serif;font-size:0.85rem;line-height:1.95;
+  color:var(--text);background:transparent;min-height:200px;
+}
+
+/* slide animation */
+.notes-list-view,.notes-detail-view{
+  position:absolute;inset:0;transition:transform 0.28s cubic-bezier(0.4,0,0.2,1),opacity 0.25s;
+}
+.notes-list-view{transform:translateX(0);opacity:1;}
+.notes-list-view.slide-out{transform:translateX(-100%);opacity:0;}
+.notes-detail-view{transform:translateX(100%);opacity:0;}
+.notes-detail-view.slide-in{transform:translateX(0);opacity:1;}
+
+/* ══ ABOUT WINDOW ══ */
+.about-body{padding:24px;text-align:center;}
+.about-avatar{
+  width:80px;height:80px;border-radius:50%;margin:0 auto 14px;
+  background:linear-gradient(135deg,var(--sky),var(--sky-dark));
+  display:flex;align-items:center;justify-content:center;font-size:2.5rem;
+  box-shadow:0 4px 16px var(--shadow);
+}
+.about-name{font-size:1.2rem;font-weight:700;color:var(--text);margin-bottom:4px;}
+.about-bio{font-size:0.78rem;color:var(--text-light);line-height:1.8;margin-bottom:16px;}
+.about-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.stat-card{background:var(--sky-pale);border-radius:8px;padding:10px;border:1px solid var(--sky-light);}
+.stat-num{font-size:1.3rem;font-weight:700;color:var(--sky-dark);}
+.stat-lbl{font-size:0.62rem;color:var(--text-light);}
+
+/* ══ CHAT WINDOW ══ */
+.chat-wrap{display:flex;flex-direction:column;height:100%;background:#f4f9fd;}
+.chat-header{
+  padding:10px 14px;background:linear-gradient(135deg,#5bb8f5,#339af0);
+  display:flex;align-items:center;gap:10px;flex-shrink:0;
+}
+.chat-room-list{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;}
+.chat-room-btn{
+  display:flex;align-items:center;gap:5px;
+  background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.35);
+  border-radius:16px;padding:4px 12px;cursor:pointer;
+  font-size:0.68rem;color:#fff;white-space:nowrap;transition:background 0.15s;
+  font-family:'Noto Sans KR',sans-serif;
+}
+.chat-room-btn:hover{background:rgba(255,255,255,0.35);}
+.chat-room-btn.active{background:rgba(255,255,255,0.5);color:#1a5a8a;font-weight:700;}
+.chat-room-btn .room-dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+}
+.chat-messages{
+  flex:1;overflow-y:auto;padding:14px 12px;
+  display:flex;flex-direction:column;gap:10px;
+}
+.chat-messages::-webkit-scrollbar{width:4px;}
+.chat-messages::-webkit-scrollbar-thumb{background:var(--sky-light);border-radius:2px;}
+/* day divider */
+.chat-day{
+  text-align:center;font-size:0.6rem;color:var(--gray3);
+  display:flex;align-items:center;gap:8px;margin:4px 0;
+}
+.chat-day::before,.chat-day::after{content:'';flex:1;height:1px;background:var(--gray);}
+/* message row */
+.msg-row{display:flex;align-items:flex-end;gap:7px;}
+.msg-row.me{flex-direction:row-reverse;}
+.msg-avatar{
+  width:30px;height:30px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.9rem;flex-shrink:0;
+  box-shadow:0 2px 6px var(--shadow);
+}
+.msg-col{display:flex;flex-direction:column;gap:2px;max-width:72%;}
+.msg-row.me .msg-col{align-items:flex-end;}
+.msg-name{font-size:0.58rem;color:var(--text-light);padding:0 4px;}
+.msg-row.me .msg-name{display:none;}
+.msg-bubble{
+  padding:8px 12px;border-radius:16px;font-size:0.78rem;
+  line-height:1.55;color:var(--text);word-break:break-word;
+  background:#fff;border:1px solid var(--gray);
+  box-shadow:0 1px 4px rgba(0,0,0,0.06);
+  border-bottom-left-radius:4px;
+}
+.msg-row.me .msg-bubble{
+  background:linear-gradient(135deg,#74c0fc,#4dabf7);
+  color:#fff;border:none;
+  border-bottom-left-radius:16px;border-bottom-right-radius:4px;
+}
+.msg-time{font-size:0.55rem;color:var(--gray3);padding:0 4px;}
+/* typing indicator */
+.typing-bubble{
+  display:flex;align-items:center;gap:3px;
+  padding:10px 14px;background:#fff;border:1px solid var(--gray);
+  border-radius:16px;border-bottom-left-radius:4px;width:fit-content;
+  box-shadow:0 1px 4px rgba(0,0,0,0.06);
+}
+.typing-dot{
+  width:6px;height:6px;border-radius:50%;background:var(--gray3);
+  animation:typingBounce 1.2s infinite;
+}
+.typing-dot:nth-child(2){animation-delay:0.2s;}
+.typing-dot:nth-child(3){animation-delay:0.4s;}
+@keyframes typingBounce{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-6px);}}
+/* input bar */
+.chat-inputbar{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 12px;background:#fff;border-top:1px solid var(--gray);flex-shrink:0;
+}
+.chat-input{
+  flex:1;border:1px solid var(--sky-light);border-radius:20px;
+  padding:7px 14px;font-size:0.78rem;outline:none;
+  font-family:'Noto Sans KR',sans-serif;color:var(--text);
+  background:#f8fbff;transition:border-color 0.15s;
+}
+.chat-input:focus{border-color:var(--sky);}
+.chat-send-btn{
+  width:34px;height:34px;border-radius:50%;border:none;
+  background:linear-gradient(135deg,#5bb8f5,#339af0);
+  color:#fff;font-size:1rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:transform 0.15s,filter 0.15s;
+}
+.chat-send-btn:hover{filter:brightness(1.1);transform:scale(1.05);}
+.chat-send-btn:active{transform:scale(0.95);}
+.chat-emoji-btn{
+  background:none;border:none;font-size:1.2rem;cursor:pointer;
+  padding:2px;transition:transform 0.15s;
+}
+.chat-emoji-btn:hover{transform:scale(1.2);}
+
+
+/* ══ ADMIN PANEL ══ */
+.adm-section{
+  background:#fff;border:1px solid var(--sky-light);border-radius:10px;padding:12px;
+}
+.adm-title{
+  font-size:0.7rem;font-weight:700;color:var(--sky-dark);margin-bottom:8px;
+}
+
+/* ══ LIGHTBOX ══ */
+#lightbox{
+  position:fixed;inset:0;z-index:9999;
+  background:rgba(0,20,50,0.85);backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.25s;
+}
+#lightbox.open{opacity:1;pointer-events:all;}
+#lightbox img{max-width:88vw;max-height:85vh;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,0.5);}
+.lb-close{
+  position:absolute;top:20px;right:24px;background:rgba(255,255,255,0.15);
+  border:none;color:#fff;font-size:1.2rem;cursor:pointer;width:36px;height:36px;
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  transition:background 0.2s;
+}
+.lb-close:hover{background:rgba(255,255,255,0.3);}
+</style>
+</head>
+<body>
+
+<!-- WALLPAPER -->
+<div class="wallpaper">
+  <!-- pixel cloud SVG template reused 3x -->
+  <div class="cloud c1">
+    <svg width="160" height="56" viewBox="0 0 20 7" xmlns="http://www.w3.org/2000/svg" style="image-rendering:pixelated">
+      <rect x="3" y="4" width="14" height="3" fill="rgba(255,255,255,0.75)"/>
+      <rect x="2" y="3" width="16" height="1" fill="rgba(255,255,255,0.75)"/>
+      <rect x="4" y="2" width="5" height="2" fill="rgba(255,255,255,0.75)"/>
+      <rect x="9" y="1" width="6" height="3" fill="rgba(255,255,255,0.75)"/>
+      <rect x="5" y="3" width="3" height="1" fill="rgba(255,255,255,0.55)"/>
+      <rect x="10" y="2" width="4" height="1" fill="rgba(255,255,255,0.55)"/>
+      <rect x="2" y="5" width="16" height="1" fill="rgba(200,230,255,0.4)"/>
+    </svg>
+  </div>
+  <div class="cloud c2">
+    <svg width="160" height="56" viewBox="0 0 20 7" xmlns="http://www.w3.org/2000/svg" style="image-rendering:pixelated">
+      <rect x="2" y="4" width="16" height="3" fill="rgba(255,255,255,0.70)"/>
+      <rect x="1" y="3" width="18" height="1" fill="rgba(255,255,255,0.70)"/>
+      <rect x="3" y="2" width="4" height="2" fill="rgba(255,255,255,0.70)"/>
+      <rect x="8" y="1" width="7" height="3" fill="rgba(255,255,255,0.70)"/>
+      <rect x="14" y="2" width="3" height="2" fill="rgba(255,255,255,0.70)"/>
+      <rect x="4" y="3" width="3" height="1" fill="rgba(255,255,255,0.50)"/>
+      <rect x="9" y="2" width="5" height="1" fill="rgba(255,255,255,0.50)"/>
+      <rect x="1" y="5" width="18" height="1" fill="rgba(200,230,255,0.35)"/>
+    </svg>
+  </div>
+  <div class="cloud c3">
+    <svg width="160" height="56" viewBox="0 0 20 7" xmlns="http://www.w3.org/2000/svg" style="image-rendering:pixelated">
+      <rect x="4" y="4" width="12" height="3" fill="rgba(255,255,255,0.65)"/>
+      <rect x="3" y="3" width="14" height="1" fill="rgba(255,255,255,0.65)"/>
+      <rect x="5" y="2" width="4" height="2" fill="rgba(255,255,255,0.65)"/>
+      <rect x="10" y="1" width="5" height="3" fill="rgba(255,255,255,0.65)"/>
+      <rect x="6" y="3" width="2" height="1" fill="rgba(255,255,255,0.45)"/>
+      <rect x="3" y="5" width="14" height="1" fill="rgba(200,230,255,0.3)"/>
+    </svg>
+  </div>
+
+</div>
+
+<!-- DESKTOP -->
+<div id="desktop">
+  <div class="icon-grid">
+
+    <!-- 프로필 -->
+    <div class="desk-icon" ondblclick="openWin('about')" onclick="selectIcon(this)">
+      <div class="icon-img">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+          <!-- 분홍 배경 + 하늘 테두리 -->
+          <rect x="0" y="0" width="16" height="16" fill="#f0b8d0"/>
+          <rect x="1" y="1" width="14" height="14" fill="#fce8f0"/>
+          <!-- 아래 배경 가리개 (흉상 느낌) -->
+          <rect x="1" y="11" width="14" height="4" fill="#fce8f0"/>
+
+          <!-- LEFT ear -->
+          <rect x="2" y="4" width="2" height="4" fill="#222"/>
+          <rect x="1" y="5" width="1" height="3" fill="#222"/>
+          <!-- RIGHT ear -->
+          <rect x="12" y="4" width="2" height="4" fill="#222"/>
+          <rect x="15" y="5" width="1" height="3" fill="#222"/>
+
+          <!-- head fill -->
+          <rect x="4" y="2"  width="8" height="1" fill="#fff"/>
+          <rect x="3" y="3"  width="10" height="7" fill="#fff"/>
+          <rect x="4" y="10" width="8" height="1" fill="#fff"/>
+
+          <!-- head outline -->
+          <rect x="4" y="1"  width="8" height="1" fill="#333"/>
+          <rect x="3" y="2"  width="1" height="1" fill="#333"/>
+          <rect x="12" y="2" width="1" height="1" fill="#333"/>
+          <rect x="2" y="3"  width="1" height="7" fill="#333"/>
+          <rect x="13" y="3" width="1" height="7" fill="#333"/>
+          <rect x="3" y="10" width="1" height="1" fill="#333"/>
+          <rect x="12" y="10" width="1" height="1" fill="#333"/>
+          <rect x="4" y="11" width="8" height="1" fill="#333"/>
+
+          <!-- eyes -->
+          <rect x="6"  y="6" width="1" height="1" fill="#333"/>
+          <rect x="9"  y="6" width="1" height="1" fill="#333"/>
+
+          <!-- smile -->
+          <rect x="6"  y="8" width="1" height="1" fill="#555"/>
+          <rect x="9"  y="8" width="1" height="1" fill="#555"/>
+          <rect x="7"  y="9" width="2" height="1" fill="#333"/>
+
+          <!-- chest (흉상 - 바닥에 살짝) -->
+          <rect x="5" y="12" width="6" height="2" fill="#fff"/>
+          <rect x="4" y="12" width="1" height="2" fill="#333"/>
+          <rect x="11" y="12" width="1" height="2" fill="#333"/>
+          <rect x="5" y="14" width="6" height="1" fill="#333"/>
+
+          <!-- border -->
+          <rect x="0" y="0"  width="16" height="1" fill="#e890b8"/>
+          <rect x="0" y="15" width="16" height="1" fill="#e890b8"/>
+          <rect x="0" y="0"  width="1"  height="16" fill="#e890b8"/>
+          <rect x="15" y="0" width="1"  height="16" fill="#e890b8"/>
+        </svg>
+      </div>
+      <div class="icon-label">프로필</div>
+    </div>
+
+    <!-- 그림 -->
+    <div class="desk-icon" ondblclick="openWin('gallery')" onclick="selectIcon(this)">
+      <div class="icon-img">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+          <!-- frame -->
+          <rect x="1" y="1" width="14" height="14" fill="#c8e6ff"/>
+          <rect x="2" y="2" width="12" height="12" fill="#e8f5ff"/>
+          <!-- sky in painting -->
+          <rect x="3" y="3" width="10" height="5" fill="#b0d8ff"/>
+          <!-- sun -->
+          <rect x="10" y="3" width="2" height="2" fill="#ffe066"/>
+          <rect x="11" y="2" width="1" height="1" fill="#ffe066"/>
+          <!-- cloud -->
+          <rect x="4" y="4" width="3" height="1" fill="#fff"/>
+          <rect x="3" y="5" width="4" height="1" fill="#fff"/>
+          <!-- ground -->
+          <rect x="3" y="8" width="10" height="4" fill="#b8e6c0"/>
+          <!-- tree trunk -->
+          <rect x="6" y="9" width="1" height="3" fill="#c49a6c"/>
+          <!-- tree top -->
+          <rect x="5" y="7" width="3" height="3" fill="#7ed87e"/>
+          <rect x="4" y="8" width="1" height="2" fill="#7ed87e"/>
+          <rect x="8" y="8" width="1" height="1" fill="#7ed87e"/>
+          <!-- flower -->
+          <rect x="10" y="10" width="1" height="1" fill="#ff9eb5"/>
+          <rect x="9" y="10" width="1" height="1" fill="#ffccd8"/>
+          <rect x="11" y="10" width="1" height="1" fill="#ffccd8"/>
+          <!-- frame border -->
+          <rect x="0" y="0" width="16" height="1" fill="#7ab8e8"/>
+          <rect x="0" y="15" width="16" height="1" fill="#7ab8e8"/>
+          <rect x="0" y="0" width="1" height="16" fill="#7ab8e8"/>
+          <rect x="15" y="0" width="1" height="16" fill="#7ab8e8"/>
+          <!-- inner border -->
+          <rect x="2" y="2" width="12" height="1" fill="#a8d0f0"/>
+          <rect x="2" y="13" width="12" height="1" fill="#a8d0f0"/>
+          <rect x="2" y="2" width="1" height="12" fill="#a8d0f0"/>
+          <rect x="13" y="2" width="1" height="12" fill="#a8d0f0"/>
+        </svg>
+      </div>
+      <div class="icon-label">그림</div>
+    </div>
+
+    <!-- 음악 -->
+    <div class="desk-icon" ondblclick="openWin('music')" onclick="selectIcon(this)">
+      <div class="icon-img">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+          <!-- bg -->
+          <rect x="1" y="1" width="14" height="14" fill="#e8d6ff"/>
+          <rect x="2" y="2" width="12" height="12" fill="#f3eaff"/>
+          <!-- note stem -->
+          <rect x="9" y="3" width="1" height="7" fill="#9b59b6"/>
+          <rect x="6" y="5" width="1" height="7" fill="#9b59b6"/>
+          <!-- note flags -->
+          <rect x="9" y="3" width="3" height="1" fill="#9b59b6"/>
+          <rect x="9" y="5" width="2" height="1" fill="#9b59b6"/>
+          <!-- note heads -->
+          <rect x="6" y="11" width="3" height="2" fill="#c084fc"/>
+          <rect x="5" y="12" width="1" height="1" fill="#c084fc"/>
+          <rect x="9" y="9" width="3" height="2" fill="#c084fc"/>
+          <rect x="8" y="10" width="1" height="1" fill="#c084fc"/>
+          <!-- sparkles -->
+          <rect x="3" y="3" width="1" height="1" fill="#e9b8ff"/>
+          <rect x="13" y="5" width="1" height="1" fill="#e9b8ff"/>
+          <rect x="3" y="12" width="1" height="1" fill="#e9b8ff"/>
+          <rect x="13" y="13" width="1" height="1" fill="#d8a0f8"/>
+          <!-- border -->
+          <rect x="0" y="0" width="16" height="1" fill="#b07fd0"/>
+          <rect x="0" y="15" width="16" height="1" fill="#b07fd0"/>
+          <rect x="0" y="0" width="1" height="16" fill="#b07fd0"/>
+          <rect x="15" y="0" width="1" height="16" fill="#b07fd0"/>
+        </svg>
+      </div>
+      <div class="icon-label">음악</div>
+    </div>
+
+    <!-- 메모장 -->
+    <div class="desk-icon" ondblclick="openWin('notes')" onclick="selectIcon(this)">
+      <div class="icon-img">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+          <!-- bg -->
+          <rect x="1" y="1" width="14" height="14" fill="#fff3c4"/>
+          <!-- notebook body -->
+          <rect x="3" y="2" width="10" height="12" fill="#fffde8"/>
+          <rect x="3" y="2" width="10" height="1" fill="#ffd966"/>
+          <!-- spine -->
+          <rect x="3" y="2" width="2" height="12" fill="#ffd966"/>
+          <!-- rings -->
+          <rect x="3" y="4" width="2" height="1" fill="#b8860b"/>
+          <rect x="3" y="7" width="2" height="1" fill="#b8860b"/>
+          <rect x="3" y="10" width="2" height="1" fill="#b8860b"/>
+          <!-- lines -->
+          <rect x="6" y="5" width="6" height="1" fill="#ffe8a0"/>
+          <rect x="6" y="7" width="6" height="1" fill="#ffe8a0"/>
+          <rect x="6" y="9" width="6" height="1" fill="#ffe8a0"/>
+          <rect x="6" y="11" width="4" height="1" fill="#ffe8a0"/>
+          <!-- pencil -->
+          <rect x="11" y="10" width="1" height="4" fill="#ffb347"/>
+          <rect x="12" y="10" width="1" height="4" fill="#ffd090"/>
+          <rect x="11" y="9" width="2" height="1" fill="#c0392b"/>
+          <rect x="11" y="13" width="2" height="1" fill="#f5cba7"/>
+          <rect x="11" y="14" width="2" height="1" fill="#2c2c2c"/>
+          <!-- border -->
+          <rect x="0" y="0" width="16" height="1" fill="#e6c020"/>
+          <rect x="0" y="15" width="16" height="1" fill="#e6c020"/>
+          <rect x="0" y="0" width="1" height="16" fill="#e6c020"/>
+          <rect x="15" y="0" width="1" height="16" fill="#e6c020"/>
+        </svg>
+      </div>
+      <div class="icon-label">메모장</div>
+    </div>
+
+    <!-- 방명록 아이콘 -->
+    <div class="desk-icon" ondblclick="openWin('chat')" onclick="selectIcon(this)">
+      <div class="icon-img">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+          <!-- bg: mint -->
+          <rect x="0" y="0" width="16" height="16" fill="#a8e6d0"/>
+          <rect x="1" y="1" width="14" height="14" fill="#e8fff8"/>
+          <!-- speech bubble body -->
+          <rect x="2" y="3" width="11" height="8" fill="#ffffff"/>
+          <rect x="2" y="3" width="11" height="1" fill="#b0f0e0"/>
+          <!-- bubble outline -->
+          <rect x="2" y="2" width="11" height="1" fill="#444"/>
+          <rect x="1" y="3" width="1" height="8" fill="#444"/>
+          <rect x="13" y="3" width="1" height="8" fill="#444"/>
+          <rect x="2" y="11" width="8" height="1" fill="#444"/>
+          <rect x="10" y="11" width="3" height="1" fill="#444"/>
+          <!-- tail -->
+          <rect x="3" y="12" width="1" height="1" fill="#444"/>
+          <rect x="3" y="13" width="1" height="1" fill="#444"/>
+          <rect x="2" y="14" width="1" height="1" fill="#444"/>
+          <rect x="3" y="12" width="1" height="1" fill="#fff"/>
+          <rect x="3" y="13" width="1" height="1" fill="#fff"/>
+          <rect x="4" y="12" width="6" height="1" fill="#444"/>
+          <!-- text lines inside bubble -->
+          <rect x="4" y="5" width="7" height="1" fill="#b8e8d8"/>
+          <rect x="4" y="7" width="5" height="1" fill="#b8e8d8"/>
+          <rect x="4" y="9" width="6" height="1" fill="#b8e8d8"/>
+          <!-- border -->
+          <rect x="0" y="0" width="16" height="1" fill="#60c8a8"/>
+          <rect x="0" y="15" width="16" height="1" fill="#60c8a8"/>
+          <rect x="0" y="0" width="1" height="16" fill="#60c8a8"/>
+          <rect x="15" y="0" width="1" height="16" fill="#60c8a8"/>
+        </svg>
+      </div>
+      <div class="icon-label">방명록</div>
+    </div>
+
+    <!-- 휴지통 → 게시판 (관리자 전용) -->
+    <div class="desk-icon" ondblclick="openTrashBoard()" onclick="selectIcon(this)">
+      <div class="icon-img">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+          <!-- bg -->
+          <rect x="1" y="1" width="14" height="14" fill="#dde8ee"/>
+          <rect x="2" y="2" width="12" height="12" fill="#eef4f8"/>
+          <!-- lid -->
+          <rect x="3" y="4" width="10" height="2" fill="#a8c8d8"/>
+          <rect x="3" y="4" width="10" height="1" fill="#c8e0ea"/>
+          <rect x="6" y="3" width="4" height="2" fill="#a8c8d8"/>
+          <rect x="6" y="2" width="4" height="1" fill="#c8e0ea"/>
+          <!-- can body -->
+          <rect x="4" y="6" width="8" height="8" fill="#b0ccd8"/>
+          <rect x="4" y="6" width="8" height="1" fill="#c8e0ea"/>
+          <!-- stripes -->
+          <rect x="6" y="7" width="1" height="6" fill="#90aebf"/>
+          <rect x="8" y="7" width="1" height="6" fill="#90aebf"/>
+          <rect x="10" y="7" width="1" height="6" fill="#90aebf"/>
+          <!-- crumple paper inside -->
+          <rect x="6" y="8" width="2" height="1" fill="#fffde8"/>
+          <rect x="7" y="9" width="3" height="1" fill="#fffde8"/>
+          <rect x="5" y="10" width="3" height="1" fill="#fffde8"/>
+          <!-- border -->
+          <rect x="0" y="0" width="16" height="1" fill="#88b0c0"/>
+          <rect x="0" y="15" width="16" height="1" fill="#88b0c0"/>
+          <rect x="0" y="0" width="1" height="16" fill="#88b0c0"/>
+          <rect x="15" y="0" width="1" height="16" fill="#88b0c0"/>
+        </svg>
+      </div>
+      <div class="icon-label">휴지통</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- TASKBAR -->
+<div id="taskbar">
+  <div class="taskbar-start" ondblclick="openAdminPanel()">
+    <span class="logo">⚙️</span> 관리자
+  </div>
+  <div class="taskbar-divider"></div>
+  <div id="taskbar-btns"></div>
+  <div class="taskbar-spacer"></div>
+  <div class="taskbar-clock" id="clock"></div>
+</div>
+
+<!-- LIGHTBOX -->
+<div id="lightbox">
+  <button class="lb-close" onclick="closeLightbox()">✕</button>
+  <img id="lb-img" src="" alt=""/>
+</div>
+
+<script>
+/* ─── Clock ─── */
+function updateClock(){
+  const now=new Date();
+  const d=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+  const t=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('clock').innerHTML=`${t}<br><span style="font-size:0.58rem;opacity:0.85">${d}</span>`;
+}
+updateClock();setInterval(updateClock,10000);
+
+/* ─── Icon select ─── */
+function selectIcon(el){
+  document.querySelectorAll('.desk-icon').forEach(i=>i.classList.remove('selected'));
+  el.classList.add('selected');
+}
+document.getElementById('desktop').addEventListener('click',e=>{
+  if(!e.target.closest('.desk-icon'))
+    document.querySelectorAll('.desk-icon').forEach(i=>i.classList.remove('selected'));
+});
+
+/* ─── Window manager ─── */
+let zTop=100;
+const wins={};
+const taskbarBtns={};
+
+const winConfigs={
+  gallery:{title:'🖼  그림',w:580,h:480,url:'blog://gallery'},
+  upload:{title:'📤  이미지 올리기',w:480,h:400,url:'blog://upload'},
+  music:{title:'🎵  음악',w:380,h:520,url:'blog://music'},
+  notes:{title:'📝  메모장',w:440,h:480,url:'blog://notes'},
+  about:{title:'🐾  프로필',w:360,h:440,url:'blog://about'},
+  chat:{title:'💬  방명록',w:400,h:520,url:'blog://chat'},
+  trash:{title:'🗂  휴지통',w:500,h:460,url:'blog://board'},
+  admin:{title:'⚙️  관리자',w:480,h:520,url:'blog://admin'},
+};
+
+function openWin(id){
+  if(wins[id]){
+    // restore & focus
+    wins[id].classList.remove('minimized');
+    focusWin(wins[id]);
+    taskbarBtns[id]?.classList.add('active');
+    return;
+  }
+  const cfg=winConfigs[id];
+  const w=document.createElement('div');
+  w.className='win focused';
+  w.id='win-'+id;
+
+  // position — stagger
+  const offset=Object.keys(wins).length*28;
+  const vw=window.innerWidth,vh=window.innerHeight-48;
+  const left=Math.min(80+offset,vw-cfg.w-20);
+  const top=Math.min(60+offset,vh-cfg.h-20);
+  w.style.cssText=`left:${left}px;top:${top}px;width:${cfg.w}px;height:${cfg.h}px;`;
+
+  w.innerHTML=`
+    <div class="win-title" id="title-${id}">
+      <div class="win-btns">
+        <button class="win-btn close" onclick="closeWin('${id}')"></button>
+        <button class="win-btn minimize" onclick="minimizeWin('${id}')"></button>
+        <button class="win-btn maximize" onclick="maximizeWin('${id}')"></button>
+      </div>
+      <div class="win-titletext">${cfg.title}</div>
+    </div>
+    <div class="win-menubar">
+      <button class="menu-nav-btn" onclick="if('${id}'==='notes')notesGoBack()">◂</button>
+      <button class="menu-nav-btn">▸</button>
+      <div class="win-addr">
+        <span class="addr-icon">🔒</span>
+        <span class="win-addr-text">${cfg.url}</span>
+      </div>
+      <button class="menu-nav-btn" style="margin-left:2px">⟳</button>
+    </div>
+    <div class="win-content" id="content-${id}">${buildContent(id)}</div>
+    <div class="win-statusbar"><span class="statusbar-txt" id="status-${id}"></span></div>
+    <div class="win-resize" id="resize-${id}"></div>
+  `;
+
+  document.body.appendChild(w);
+  wins[id]=w;
+
+  // taskbar button
+  const btn=document.createElement('div');
+  btn.className='taskbar-btn active';
+  btn.innerHTML=`<span class="icon">${cfg.title.split(' ')[0]}</span>${cfg.title.slice(cfg.title.indexOf(' ')+1)}`;
+  btn.onclick=()=>{
+    if(w.classList.contains('minimized')){w.classList.remove('minimized');focusWin(w);}
+    else if(w.classList.contains('focused')){minimizeWin(id);}
+    else{focusWin(w);}
+  };
+  document.getElementById('taskbar-btns').appendChild(btn);
+  taskbarBtns[id]=btn;
+
+  makeDraggable(w,document.getElementById('title-'+id));
+  makeResizable(w,document.getElementById('resize-'+id));
+  focusWin(w);
+  initContent(id);
+}
+
+function focusWin(w){
+  document.querySelectorAll('.win').forEach(x=>x.classList.remove('focused'));
+  w.classList.add('focused');
+  zTop++;w.style.zIndex=zTop;
+}
+
+function closeWin(id){
+  wins[id]?.remove();
+  taskbarBtns[id]?.remove();
+  delete wins[id];
+  delete taskbarBtns[id];
+}
+
+function minimizeWin(id){
+  wins[id].classList.add('minimized');
+  taskbarBtns[id]?.classList.remove('active');
+}
+
+let maxedWin={};
+function maximizeWin(id){
+  const w=wins[id];
+  if(maxedWin[id]){
+    const s=maxedWin[id];
+    w.style.cssText=`left:${s.l}px;top:${s.t}px;width:${s.w}px;height:${s.h}px;z-index:${w.style.zIndex}`;
+    delete maxedWin[id];
+  } else {
+    maxedWin[id]={l:parseInt(w.style.left),t:parseInt(w.style.top),w:parseInt(w.style.width),h:parseInt(w.style.height)};
+    w.style.cssText=`left:0;top:0;width:100vw;height:calc(100vh - 48px);z-index:${w.style.zIndex}`;
+  }
+}
+
+/* Drag */
+function makeDraggable(win,handle){
+  let ox,oy,dragging=false;
+  handle.addEventListener('mousedown',e=>{
+    if(e.target.closest('.win-btns'))return;
+    dragging=true;
+    ox=e.clientX-win.offsetLeft;oy=e.clientY-win.offsetTop;
+    focusWin(win);
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    const x=Math.max(0,Math.min(e.clientX-ox,window.innerWidth-win.offsetWidth));
+    const y=Math.max(0,Math.min(e.clientY-oy,window.innerHeight-48-win.offsetHeight));
+    win.style.left=x+'px';win.style.top=y+'px';
+  });
+  document.addEventListener('mouseup',()=>{dragging=false;});
+}
+
+/* Resize */
+function makeResizable(win,handle){
+  let dragging=false,ox,oy,ow,oh;
+  handle.addEventListener('mousedown',e=>{
+    dragging=true;ox=e.clientX;oy=e.clientY;ow=win.offsetWidth;oh=win.offsetHeight;
+    e.preventDefault();e.stopPropagation();
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    win.style.width=Math.max(300,ow+(e.clientX-ox))+'px';
+    win.style.height=Math.max(200,oh+(e.clientY-oy))+'px';
+  });
+  document.addEventListener('mouseup',()=>{dragging=false;});
+}
+
+/* ─── Content builders ─── */
+const sampleImages=[
+  {ph:'linear-gradient(135deg,#74c0fc,#1971c2)',name:'하늘 풍경.jpg',date:'2025.04.12',size:'2.4 MB'},
+  {ph:'linear-gradient(135deg,#f093fb,#c44ddb)',name:'라벤더 밭.jpg',date:'2025.03.28',size:'1.8 MB'},
+  {ph:'linear-gradient(135deg,#69db7c,#2f9e44)',name:'봄 산책.jpg',date:'2025.03.10',size:'3.1 MB'},
+  {ph:'linear-gradient(135deg,#ffd43b,#f59f00)',name:'노을.jpg',date:'2025.02.20',size:'2.7 MB'},
+  {ph:'linear-gradient(135deg,#ffa94d,#e67700)',name:'가을 단풍.jpg',date:'2025.01.15',size:'1.5 MB'},
+  {ph:'linear-gradient(135deg,#ff6b6b,#c0392b)',name:'장미.jpg',date:'2024.12.05',size:'2.2 MB'},
+  {ph:'linear-gradient(135deg,#20c997,#0ca678)',name:'바다.jpg',date:'2024.11.18',size:'4.0 MB'},
+  {ph:'linear-gradient(135deg,#adb5bd,#495057)',name:'겨울 눈.jpg',date:'2024.10.30',size:'1.9 MB'},
+];
+
+let uploadedList=[];
+let galleryView='grid';
+
+function buildContent(id){
+  if(id==='gallery')return buildGallery();
+  if(id==='upload')return buildUpload();
+  if(id==='music')return buildMusic();
+  if(id==='notes')return buildNotes();
+  if(id==='about')return buildAbout();
+  if(id==='chat')return buildChat();
+  if(id==='trash')return buildBoard();
+  if(id==='admin')return buildAdmin();
+  return '';
+}
+
+function buildGallery(){
+  return `
+  <div style="display:flex;flex-direction:column;height:100%;">
+    <div class="gallery-toolbar">
+      <button class="view-btn active" onclick="setView('grid',this)" id="vbtn-grid">⊞ 격자</button>
+      <button class="view-btn" onclick="setView('list',this)" id="vbtn-list">☰ 목록</button>
+      <span style="flex:1"></span>
+      <span style="font-size:0.65rem;color:var(--text-light);margin-right:6px;">${sampleImages.length+uploadedList.length}개 항목</span>
+      <button onclick="openGalleryPost()" title="새 게시글"
+        style="background:var(--sky);color:#fff;border:none;border-radius:50%;
+        width:26px;height:26px;font-size:1rem;cursor:pointer;display:flex;align-items:center;
+        justify-content:center;font-weight:700;flex-shrink:0;line-height:1;">+</button>
+    </div>
+    <div class="win-content" style="flex:1;overflow:auto;" id="gallery-win-content">
+      <div class="gallery-inner" id="gal-inner">${renderGalleryItems()}</div>
+    </div>
+  </div>`;
+}
+
+function renderGalleryItems(){
+  const all=[...sampleImages,...uploadedList.map((u,i)=>({ph:null,src:u.src,name:u.name,date:'방금',size:'—'}))];
+  if(galleryView==='grid'){
+    return all.map((img,i)=>`
+      <div class="gal-thumb" onclick="openLB('${img.src||''}','${img.ph||''}')">
+        ${img.src
+          ? `<img class="thumb-img" src="${img.src}" />`
+          : `<div class="thumb-ph" style="background:${img.ph};aspect-ratio:1;"></div>`}
+        <div class="thumb-label">${img.name}</div>
+      </div>`).join('');
+  } else {
+    return all.map(img=>`
+      <div class="list-item" onclick="openLB('${img.src||''}','${img.ph||''}')">
+        <div class="list-thumb">
+          ${img.src
+            ? `<img src="${img.src}" style="width:100%;height:100%;object-fit:cover;">`
+            : `<div class="list-thumb-ph" style="background:${img.ph};"></div>`}
+        </div>
+        <div class="list-info"><div class="list-name">${img.name}</div><div class="list-meta">${img.date}</div></div>
+        <div class="list-size">${img.size}</div>
+      </div>`).join('');
+  }
+}
+
+/* ── Gallery Posts ── */
+const galleryPosts=[];
+let galleryAdminUnlocked=false;
+let galleryView2='list'; // 'list'|'post'
+
+function openGalleryPost(){
+  if(!galleryAdminUnlocked){ openGalleryAdminPW(); return; }
+  showGalleryEditor();
+}
+
+function openGalleryAdminPW(){
+  const modal=document.createElement('div');
+  modal.id='gap-modal';
+  modal.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(0,20,60,0.55);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
+  modal.innerHTML=`<div style="background:#fff;border-radius:14px;padding:24px;width:260px;
+      box-shadow:0 16px 48px rgba(60,120,200,0.25);text-align:center;">
+      <div style="font-size:1.8rem;margin-bottom:6px;">+</div>
+      <div style="font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:12px;">그림 게시판 관리자</div>
+      <input id="gap-pw" type="password" placeholder="비밀번호 입력"
+        style="width:100%;border:1px solid var(--sky-light);border-radius:8px;padding:7px 10px;
+        font-size:0.82rem;outline:none;text-align:center;letter-spacing:0.15em;margin-bottom:8px;"
+        onkeydown="if(event.key==='Enter')checkGalleryAdminPW()"/>
+      <div id="gap-err" style="font-size:0.62rem;color:#e05555;height:12px;margin-bottom:6px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="document.getElementById('gap-modal').remove()"
+          style="flex:1;background:#f0f4f8;border:1px solid var(--gray2);border-radius:8px;
+          padding:6px;font-size:0.72rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button onclick="checkGalleryAdminPW()"
+          style="flex:1;background:linear-gradient(135deg,var(--sky),var(--sky-dark));
+          color:#fff;border:none;border-radius:8px;padding:6px;font-size:0.72rem;cursor:pointer;
+          font-weight:700;font-family:'Noto Sans KR',sans-serif;">확인</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(()=>document.getElementById('gap-pw')?.focus(),80);
+}
+
+function checkGalleryAdminPW(){
+  const val=document.getElementById('gap-pw')?.value;
+  if(val===ADMIN_PW){
+    galleryAdminUnlocked=true;
+    document.getElementById('gap-modal')?.remove();
+    showGalleryEditor();
+  } else {
+    const err=document.getElementById('gap-err');
+    if(err){err.textContent='비밀번호가 틀렸어요';setTimeout(()=>err.textContent='',1500);}
+    const inp=document.getElementById('gap-pw');
+    if(inp){inp.value='';inp.focus();}
+  }
+}
+
+let galleryThumbData='';
+let galleryImgData='';
+
+function showGalleryEditor(){
+  const wc=document.getElementById('gallery-win-content');
+  if(!wc)return;
+  wc.innerHTML=`
+    <div style="display:flex;flex-direction:column;height:100%;padding:14px;gap:10px;overflow-y:auto;box-sizing:border-box;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+        <button onclick="hideGalleryEditor()" style="background:var(--sky-pale);border:1px solid var(--sky-light);
+          border-radius:6px;padding:4px 10px;font-size:0.68rem;color:var(--sky-dark);cursor:pointer;
+          font-family:'Noto Sans KR',sans-serif;">◂ 목록</button>
+        <span style="font-size:0.75rem;font-weight:700;color:var(--text);">새 게시글 작성</span>
+      </div>
+
+      <!-- 제목 -->
+      <div>
+        <div style="font-size:0.62rem;color:var(--text-light);margin-bottom:3px;">제목</div>
+        <input id="gp-title" placeholder="게시글 제목을 입력하세요"
+          style="width:100%;border:1px solid var(--sky-light);border-radius:7px;padding:7px 10px;
+          font-size:0.8rem;outline:none;font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;"/>
+      </div>
+
+      <!-- 썸네일 -->
+      <div>
+        <div style="font-size:0.62rem;color:var(--text-light);margin-bottom:3px;">썸네일 이미지</div>
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+          <div id="gp-thumb-prev" style="width:64px;height:64px;border-radius:8px;flex-shrink:0;
+            background:var(--sky-pale);border:1px solid var(--sky-light);
+            display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:var(--text-light);
+            overflow:hidden;">썸네일</div>
+          <div style="flex:1;position:relative;">
+            <input type="file" accept="image/*" onchange="previewGalleryThumb(this)"
+              style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;"/>
+            <div style="background:var(--sky-pale);border:1px dashed var(--sky);border-radius:7px;
+              padding:8px;font-size:0.68rem;color:var(--sky-dark);text-align:center;cursor:pointer;">
+              📁 썸네일 선택</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 그림 -->
+      <div>
+        <div style="font-size:0.62rem;color:var(--text-light);margin-bottom:3px;">그림 (본문 이미지)</div>
+        <div id="gp-img-prev" style="width:100%;min-height:80px;border-radius:8px;
+          background:var(--sky-pale);border:1px solid var(--sky-light);
+          display:flex;align-items:center;justify-content:center;
+          font-size:0.65rem;color:var(--text-light);overflow:hidden;position:relative;margin-bottom:5px;">
+          이미지가 없습니다
+        </div>
+        <div style="position:relative;">
+          <input type="file" accept="image/*" onchange="previewGalleryImg(this)"
+            style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;"/>
+          <div style="background:var(--sky-pale);border:1px dashed var(--sky);border-radius:7px;
+            padding:6px;font-size:0.68rem;color:var(--sky-dark);text-align:center;cursor:pointer;">
+            📁 그림 파일 선택</div>
+        </div>
+      </div>
+
+      <!-- 내용 -->
+      <div>
+        <div style="font-size:0.62rem;color:var(--text-light);margin-bottom:3px;">내용</div>
+        <textarea id="gp-body" rows="4" placeholder="내용을 입력하세요..."
+          style="width:100%;border:1px solid var(--sky-light);border-radius:7px;padding:7px 10px;
+          font-size:0.78rem;outline:none;resize:none;line-height:1.7;
+          font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;"></textarea>
+      </div>
+
+      <!-- 저장 -->
+      <button onclick="saveGalleryPost()"
+        style="background:linear-gradient(135deg,var(--sky),var(--sky-dark));color:#fff;border:none;
+        border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;
+        font-family:'Noto Sans KR',sans-serif;">💾 게시하기</button>
+    </div>`;
+}
+
+function previewGalleryThumb(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    galleryThumbData=e.target.result;
+    const prev=document.getElementById('gp-thumb-prev');
+    if(prev) prev.innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;"/>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function previewGalleryImg(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    galleryImgData=e.target.result;
+    const prev=document.getElementById('gp-img-prev');
+    if(prev) prev.innerHTML=`<img src="${e.target.result}" style="width:100%;object-fit:contain;max-height:200px;"/>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveGalleryPost(){
+  const title=(document.getElementById('gp-title')?.value||'').trim()||'제목 없음';
+  const body=(document.getElementById('gp-body')?.value||'').trim();
+  const now=new Date();
+  const date=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+  galleryPosts.unshift({id:Date.now(),title,body,thumb:galleryThumbData,img:galleryImgData,date});
+  galleryThumbData='';galleryImgData='';
+  hideGalleryEditor();
+}
+
+function hideGalleryEditor(){
+  const wc=document.getElementById('gallery-win-content');
+  if(wc){
+    wc.innerHTML=`<div class="gallery-inner" id="gal-inner">${renderGalleryItems()}</div>`;
+  }
+}
+
+function setView(v,btn){
+  galleryView=v;
+  document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const inner=document.getElementById('gal-inner');
+  if(inner){
+    inner.className='gallery-inner'+(v==='list'?' list-view':'');
+    inner.innerHTML=renderGalleryItems();
+  }
+}
+
+function buildUpload(){
+  return `
+  <div style="padding:12px;">
+    <div class="upload-drop" id="drop-zone">
+      <input type="file" accept="image/*" multiple id="file-input" onchange="handleFiles(this.files)"/>
+      <span class="up-icon">📂</span>
+      <p><strong>클릭하거나 드래그</strong>해서 이미지를 추가하세요</p>
+      <p style="margin-top:4px;font-size:0.62rem;">JPG · PNG · GIF · WEBP</p>
+    </div>
+    <div id="up-thumbs" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;margin-top:10px;"></div>
+  </div>`;
+}
+
+function buildMusic(){
+  return `
+  <div style="display:flex;flex-direction:column;height:100%;">
+    <!-- toolbar with admin button -->
+    <div style="padding:5px 10px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);
+      display:flex;align-items:center;justify-content:flex-end;flex-shrink:0;">
+      <button onclick="toggleMusicAdmin()" title="관리자: 곡 추가"
+        style="background:var(--sky);color:#fff;border:none;border-radius:50%;
+        width:26px;height:26px;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;
+        justify-content:center;flex-shrink:0;">♬</button>
+    </div>
+    <!-- admin add panel (hidden by default) -->
+    <div id="music-admin-panel" style="display:none;padding:10px 12px;background:var(--sky-pale);
+      border-bottom:1px solid var(--sky-light);flex-shrink:0;">
+      <div style="font-size:0.65rem;color:var(--text-light);margin-bottom:6px;font-weight:700;">🔗 유튜브 영상 추가</div>
+      <div style="display:flex;gap:5px;margin-bottom:5px;">
+        <input id="yt-id-input" placeholder="영상 ID (예: dQw4w9WgXcQ)"
+          style="flex:1;border:1px solid var(--sky-light);border-radius:6px;padding:5px 8px;
+          font-size:0.7rem;outline:none;font-family:'Noto Sans KR',sans-serif;"/>
+      </div>
+      <div style="display:flex;gap:5px;">
+        <input id="yt-name-input" placeholder="곡 제목"
+          style="flex:2;border:1px solid var(--sky-light);border-radius:6px;padding:5px 8px;
+          font-size:0.7rem;outline:none;font-family:'Noto Sans KR',sans-serif;"/>
+        <button onclick="addYTTrack()" style="flex:1;background:var(--sky);color:#fff;border:none;
+          border-radius:6px;padding:5px 8px;font-size:0.7rem;cursor:pointer;
+          font-family:'Noto Sans KR',sans-serif;">추가</button>
+      </div>
+    </div>
+    <div class="music-body" style="overflow-y:auto;flex:1;">
+      <!-- YouTube embed area -->
+      <div style="background:#000;position:relative;padding-bottom:56.25%;height:0;overflow:hidden;" id="yt-wrap">
+        <iframe id="yt-frame"
+          style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"
+          src=""
+          allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture"
+          allowfullscreen>
+        </iframe>
+      </div>
+      <!-- now playing info -->
+      <div class="now-playing" style="border-radius:0;margin-bottom:0;">
+        <div class="np-art" id="np-art">🎵</div>
+        <div style="flex:1;">
+          <div class="np-title" id="np-title">재생할 곡을 선택하세요</div>
+          <div class="np-artist" id="np-artist">아래 목록에서 선택</div>
+        </div>
+      </div>
+      <!-- playlist -->
+      <div style="padding:10px 12px 4px;font-size:0.68rem;color:var(--text-light);font-weight:500;background:#f7fbff;">재생 목록</div>
+      <div class="pl-list" id="pl-list" style="border-radius:0;border-left:none;border-right:none;"></div>
+    </div>
+  </div>`;
+}
+
+function toggleMusicAdmin(){
+  if(!musicAdminUnlocked){
+    openMusicAdminPW();
+  } else {
+    const p = document.getElementById('music-admin-panel');
+    if(p) p.style.display = p.style.display==='none' ? 'block' : 'none';
+  }
+}
+let musicAdminUnlocked = false;
+function openMusicAdminPW(){
+  const modal = document.createElement('div');
+  modal.id = 'map-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,20,60,0.55);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
+  modal.innerHTML = `<div style="background:#fff;border-radius:14px;padding:24px;width:260px;
+      box-shadow:0 16px 48px rgba(60,120,200,0.25);text-align:center;">
+      <div style="font-size:1.8rem;margin-bottom:6px;">♬</div>
+      <div style="font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:12px;">음악 관리자</div>
+      <input id="map-pw" type="password" placeholder="비밀번호 입력"
+        style="width:100%;border:1px solid var(--sky-light);border-radius:8px;padding:7px 10px;
+        font-size:0.82rem;outline:none;text-align:center;letter-spacing:0.15em;margin-bottom:8px;"
+        onkeydown="if(event.key==='Enter')checkMusicAdminPW()"/>
+      <div id="map-err" style="font-size:0.62rem;color:#e05555;height:12px;margin-bottom:6px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="document.getElementById('map-modal').remove()"
+          style="flex:1;background:#f0f4f8;border:1px solid var(--gray2);border-radius:8px;
+          padding:6px;font-size:0.72rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button onclick="checkMusicAdminPW()"
+          style="flex:1;background:linear-gradient(135deg,var(--sky),var(--sky-dark));
+          color:#fff;border:none;border-radius:8px;padding:6px;font-size:0.72rem;cursor:pointer;
+          font-weight:700;font-family:'Noto Sans KR',sans-serif;">확인</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(()=>document.getElementById('map-pw')?.focus(),80);
+}
+function checkMusicAdminPW(){
+  const val = document.getElementById('map-pw')?.value;
+  if(val===ADMIN_PW){
+    musicAdminUnlocked=true;
+    document.getElementById('map-modal')?.remove();
+    const p=document.getElementById('music-admin-panel');
+    if(p) p.style.display='block';
+  } else {
+    const err=document.getElementById('map-err');
+    if(err){err.textContent='비밀번호가 틀렸어요';setTimeout(()=>err.textContent='',1500);}
+    const inp=document.getElementById('map-pw');
+    if(inp){inp.value='';inp.focus();}
+  }
+}
+
+/* ── YouTube playlist ── */
+const ytTracks=[
+  {id:'jfKfPfyJRdk',title:'lofi hip hop radio',artist:'Lofi Girl · 작업용'},
+  {id:'5qap5aO4i9A',title:'lofi hip hop - beats to relax',artist:'Lofi Girl · 휴식용'},
+  {id:'DWcJFNfaw9c',title:'chillhop music - jazz',artist:'Chillhop Music'},
+  {id:'kgx4WGK0oNU',title:'peaceful piano · study music',artist:'Soothing Relaxation'},
+];
+let curYT=null;
+
+function initPlayer(){
+  buildPL();
+}
+
+function buildPL(){
+  const pl=document.getElementById('pl-list');
+  if(!pl)return;
+  pl.innerHTML=ytTracks.map((t,i)=>`
+    <div class="pl-item${curYT===i?' active':''}" onclick="playYT(${i})" style="cursor:pointer;">
+      <span class="pl-num">${String(i+1).padStart(2,'0')}</span>
+      <div style="flex:1;">
+        <div class="pl-name">${t.title}</div>
+        <div style="font-size:0.6rem;color:var(--text-light);">${t.artist}</div>
+      </div>
+      <span style="font-size:0.8rem;">${curYT===i?'▶':'○'}</span>
+    </div>`).join('');
+}
+
+function playYT(i){
+  curYT=i;
+  const t=ytTracks[i];
+  const frame=document.getElementById('yt-frame');
+  const title=document.getElementById('np-title');
+  const artist=document.getElementById('np-artist');
+  if(frame) frame.src=`https://www.youtube.com/embed/${t.id}?autoplay=1`;
+  if(title) title.textContent=t.title;
+  if(artist) artist.textContent=t.artist;
+  buildPL();
+}
+
+function addYTTrack(){
+  const idEl=document.getElementById('yt-id-input');
+  const nameEl=document.getElementById('yt-name-input');
+  if(!idEl||!nameEl)return;
+  const id=idEl.value.trim();
+  const name=nameEl.value.trim()||'사용자 추가 곡';
+  if(!id){alert('유튜브 영상 ID를 입력해주세요!\n예) https://youtube.com/watch?v= 뒤의 코드');return;}
+  ytTracks.push({id,title:name,artist:'직접 추가'});
+  idEl.value='';nameEl.value='';
+  buildPL();
+  playYT(ytTracks.length-1);
+}
+
+/* ── Board (admin only) ── */
+const ADMIN_PW='1234'; // ← 여기서 비밀번호 변경!
+let boardUnlocked=false;
+
+const boardPosts=[
+  {id:1,title:'블로그 오픈했어요! 🎉',author:'관리자',date:'2025.04.10',views:42,content:'안녕하세요, 드디어 블로그를 오픈했어요!\n앞으로 사진이랑 일상을 열심히 올릴게요. 많이 놀러와 주세요 🌸'},
+  {id:2,title:'4월 사진 업로드 완료',author:'관리자',date:'2025.04.12',views:28,content:'봄 풍경 사진들을 업로드했습니다.\n그림 탭에서 확인해보세요! 📷'},
+  {id:3,title:'방명록 남겨주세요',author:'관리자',date:'2025.04.13',views:35,content:'방문해주셔서 감사합니다!\n방명록에 흔적 남겨주시면 너무 좋아요 💙'},
+];
+let boardView=null; // null=list, number=post id
+
+function openTrashBoard(){
+  if(boardUnlocked){openWin('trash');return;}
+  // password modal
+  const modal=document.createElement('div');
+  modal.id='pw-modal';
+  modal.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(0,20,60,0.55);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
+  modal.innerHTML=`
+    <div style="background:#fff;border-radius:14px;padding:28px 28px 22px;width:280px;
+      box-shadow:0 16px 48px rgba(60,120,200,0.25);border:1px solid var(--sky-light);text-align:center;">
+      <div style="font-size:2rem;margin-bottom:8px;">🔐</div>
+      <div style="font-size:0.9rem;font-weight:700;color:var(--text);margin-bottom:4px;">관리자 전용</div>
+      <div style="font-size:0.72rem;color:var(--text-light);margin-bottom:16px;">비밀번호를 입력하세요</div>
+      <input id="pw-input" type="password" placeholder="비밀번호 입력"
+        style="width:100%;border:1px solid var(--sky-light);border-radius:8px;padding:8px 12px;
+        font-size:0.85rem;outline:none;text-align:center;letter-spacing:0.2em;margin-bottom:10px;"
+        onkeydown="if(event.key==='Enter')checkPW()"/>
+      <div id="pw-err" style="font-size:0.65rem;color:#e05555;height:14px;margin-bottom:6px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="document.getElementById('pw-modal').remove()"
+          style="flex:1;background:#f0f4f8;border:1px solid var(--gray2);border-radius:8px;
+          padding:7px;font-size:0.75rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button onclick="checkPW()"
+          style="flex:1;background:linear-gradient(135deg,var(--sky),var(--sky-dark));
+          color:#fff;border:none;border-radius:8px;padding:7px;font-size:0.75rem;cursor:pointer;
+          font-weight:700;font-family:'Noto Sans KR',sans-serif;">확인</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(()=>document.getElementById('pw-input')?.focus(),100);
+}
+
+function checkPW(){
+  const val=document.getElementById('pw-input')?.value;
+  if(val===ADMIN_PW){
+    boardUnlocked=true;
+    document.getElementById('pw-modal')?.remove();
+    openWin('trash');
+  } else {
+    const err=document.getElementById('pw-err');
+    if(err){err.textContent='비밀번호가 틀렸어요 🔒';setTimeout(()=>err.textContent='',1800);}
+    const inp=document.getElementById('pw-input');
+    if(inp){inp.value='';inp.focus();}
+  }
+}
+
+function buildBoard(){
+  boardView=null;
+  return `<div style="display:flex;flex-direction:column;height:100%;">
+    ${renderBoardList()}
+  </div>`;
+}
+
+function renderBoardList(){
+  return `
+  <div style="padding:8px 14px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);
+    display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <span style="font-size:0.68rem;color:var(--text-light);">${boardPosts.length}개의 게시글 · 관리자 전용</span>
+    <button onclick="boardNewPost()" style="background:var(--sky);color:#fff;border:none;border-radius:5px;
+      padding:4px 11px;font-size:0.68rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 새 글</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;">
+    ${boardPosts.map(p=>`
+      <div onclick="openBoardPost(${p.id})" style="padding:12px 14px;border-bottom:1px solid var(--gray);
+        cursor:pointer;transition:background 0.1s;" onmouseover="this.style.background='#f0f9ff'"
+        onmouseout="this.style.background=''">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+          <span style="font-size:0.82rem;font-weight:700;color:var(--text);">${p.title}</span>
+          <span style="font-size:0.6rem;color:var(--gray3);">조회 ${p.views}</span>
+        </div>
+        <div style="font-size:0.65rem;color:var(--text-light);">${p.author} · ${p.date}</div>
+      </div>`).join('')}
+  </div>`;
+}
+
+function openBoardPost(id){
+  const post=boardPosts.find(p=>p.id===id);
+  if(!post)return;
+  boardView=id;
+  const content=document.getElementById('content-trash');
+  if(!content)return;
+  post.views++;
+  content.innerHTML=`<div style="display:flex;flex-direction:column;height:100%;">
+    <div style="padding:8px 12px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);
+      display:flex;align-items:center;gap:8px;flex-shrink:0;">
+      <button onclick="boardGoBack()" style="background:linear-gradient(to bottom,#fff,#e0f0fb);
+        border:1px solid var(--sky-light);border-radius:5px;padding:3px 10px;font-size:0.68rem;
+        color:var(--sky-dark);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">◂ 목록</button>
+      <button onclick="deleteBoardPost(${id})" style="background:#fff5f5;border:1px solid #ffd0d0;
+        border-radius:5px;padding:3px 8px;font-size:0.65rem;color:#e05555;cursor:pointer;
+        font-family:'Noto Sans KR',sans-serif;margin-left:auto;">🗑 삭제</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:20px;">
+      <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:6px;">${post.title}</div>
+      <div style="font-size:0.65rem;color:var(--gray3);padding-bottom:12px;border-bottom:1px solid var(--gray);margin-bottom:14px;">
+        ${post.author} · ${post.date} · 조회 ${post.views}</div>
+      <div style="font-size:0.83rem;line-height:1.9;color:var(--text);white-space:pre-line;">${post.content}</div>
+    </div>
+  </div>`;
+}
+
+function boardGoBack(){
+  boardView=null;
+  const content=document.getElementById('content-trash');
+  if(content) content.innerHTML=`<div style="display:flex;flex-direction:column;height:100%;">${renderBoardList()}</div>`;
+}
+
+function deleteBoardPost(id){
+  if(!confirm('이 게시글을 삭제할까요?'))return;
+  const idx=boardPosts.findIndex(p=>p.id===id);
+  if(idx>-1)boardPosts.splice(idx,1);
+  boardGoBack();
+}
+
+function boardNewPost(){
+  const id=Date.now();
+  const now=new Date();
+  const date=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+  const content=document.getElementById('content-trash');
+  if(!content)return;
+  content.innerHTML=`<div style="display:flex;flex-direction:column;height:100%;">
+    <div style="padding:8px 12px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);
+      display:flex;align-items:center;gap:8px;flex-shrink:0;">
+      <button onclick="boardGoBack()" style="background:linear-gradient(to bottom,#fff,#e0f0fb);
+        border:1px solid var(--sky-light);border-radius:5px;padding:3px 10px;font-size:0.68rem;
+        color:var(--sky-dark);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">◂ 취소</button>
+      <button onclick="saveBoardPost(${id},'${date}')" style="background:var(--sky);color:#fff;border:none;
+        border-radius:5px;padding:3px 10px;font-size:0.68rem;cursor:pointer;margin-left:auto;
+        font-family:'Noto Sans KR',sans-serif;">💾 저장</button>
+    </div>
+    <div style="flex:1;padding:16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;">
+      <input id="board-new-title" placeholder="제목" style="border:1px solid var(--sky-light);
+        border-radius:6px;padding:8px 12px;font-size:0.88rem;font-weight:700;outline:none;
+        font-family:'Noto Sans KR',sans-serif;"/>
+      <textarea id="board-new-body" placeholder="내용을 작성하세요..." style="flex:1;border:1px solid var(--sky-light);
+        border-radius:6px;padding:10px 12px;font-size:0.82rem;line-height:1.8;outline:none;resize:none;
+        min-height:200px;font-family:'Noto Sans KR',sans-serif;"></textarea>
+    </div>
+  </div>`;
+}
+
+function saveBoardPost(id,date){
+  const title=document.getElementById('board-new-title')?.value.trim()||'제목 없음';
+  const body=document.getElementById('board-new-body')?.value.trim()||'';
+  boardPosts.unshift({id,title,author:'관리자',date,views:0,content:body});
+  boardGoBack();
+}
+
+function initBoard(){/* nothing needed on open */}
+
+function buildNotes(){
+  return `<div class="notes-wrap" id="notes-wrap">
+    <!-- LIST VIEW -->
+    <div class="notes-list-view" id="notes-list-view">
+      <div class="notes-list-toolbar">
+        <span>${notesData.length}개의 일기</span>
+        <button class="new-note-btn" onclick="newNote()">+ 새 일기</button>
+      </div>
+      <div class="diary-list" id="diary-list">${renderDiaryList()}</div>
+    </div>
+    <!-- DETAIL VIEW -->
+    <div class="notes-detail-view" id="notes-detail-view">
+      <div class="notes-detail-toolbar">
+        <button class="back-btn" onclick="notesGoBack()">◂ 목록</button>
+        <div class="detail-spacer"></div>
+        <button class="fmt-btn" onclick="document.execCommand('bold')"><b>B</b></button>
+        <button class="fmt-btn" onclick="document.execCommand('italic')"><i>I</i></button>
+        <button class="fmt-btn" onclick="document.execCommand('underline')"><u>U</u></button>
+        <button class="fmt-btn" onclick="saveCurrentNote()" style="margin-left:4px;">💾 저장</button>
+        <button class="fmt-btn" onclick="deleteCurrentNote()" style="color:#d9534f;margin-left:2px;">🗑</button>
+      </div>
+      <div class="detail-paper">
+        <input class="detail-title-input" id="note-title-input" placeholder="제목을 입력하세요" />
+        <div class="detail-meta-row" id="note-meta-row">날짜</div>
+        <div class="detail-body" contenteditable="true" id="note-body-input"
+          style="min-height:200px;"></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ── Diary data & helpers ── */
+const notesData=[
+  {id:1,title:'봄비 내리던 날',date:'2025.04.12',body:'오늘은 카메라 하나 들고 빗속으로 나갔다.\n\n젖은 아스팔트 위로 가로등 빛이 번지는 걸 담고 싶었다. 한 장, 한 장 셔터를 누를 때마다 빗소리가 더 크게 들렸다.\n\n이런 날엔 필름 카메라가 더 어울렸을 텐데.'},
+  {id:2,title:'새벽 3시의 필름 현상',date:'2025.03.28',body:'암실이 이렇게 명상적인 공간인지 처음 알았다.\n\n빛 한 점 없는 어둠 속에서 물약 냄새를 맡으며 이미지가 떠오르는 걸 기다리는 일. 디지털 보정 10분보다 이 기다림이 훨씬 진하다.'},
+  {id:3,title:'도쿄, 어느 골목에서',date:'2025.02.14',body:'지도 없이 걷는 여행.\n\n골목이 골목을 이어받고, 작은 찻집 창문에 붙은 메뉴판이 눈에 들어왔다. 일본어를 못 읽어도 그 글씨체가 아름다웠다.\n\n사진은 언어보다 먼저 닿는다는 걸 다시 느꼈다.'},
+  {id:4,title:'겨울 창가의 빛',date:'2025.01.03',body:'겨울 오후의 빛은 낮게 든다.\n\n창문을 통과한 사선의 빛이 마루 위에 길게 누울 때, 그 순간을 1/500로 잘라낸다. 같은 창문인데 계절마다 다른 얼굴이다.'},
+  {id:5,title:'첫 번째 일기',date:'2024.12.01',body:'블로그를 시작하는 날.\n\n무엇을 써야 할지 몰라서 일단 이렇게 시작한다. 사진이든 글이든, 작은 것들을 기록하다 보면 언젠가는 쌓이겠지.'},
+];
+let currentNoteId=null;
+
+function renderDiaryList(){
+  return notesData.map(n=>{
+    const parts=n.date.split('.');
+    const mon=parts[1]||'';const day=parts[2]||'';
+    const preview=n.body.replace(/\n/g,' ');
+    return `<div class="diary-item" onclick="openNote(${n.id})">
+      <div class="diary-date-badge">
+        <div class="day">${day}</div>
+        <div class="mon">${mon}월</div>
+      </div>
+      <div class="diary-item-body">
+        <div class="diary-item-title">${n.title}</div>
+        <div class="diary-item-preview">${preview}</div>
+        <div class="diary-item-meta">${n.date}</div>
+      </div>
+      <div class="diary-item-arrow">›</div>
+    </div>`;
+  }).join('');
+}
+
+function openNote(id){
+  const note=notesData.find(n=>n.id===id);
+  if(!note)return;
+  currentNoteId=id;
+  const ti=document.getElementById('note-title-input');
+  const bi=document.getElementById('note-body-input');
+  const meta=document.getElementById('note-meta-row');
+  if(ti)ti.value=note.title;
+  if(meta)meta.textContent=note.date;
+  if(bi)bi.innerHTML=note.body.replace(/\n/g,'<br>');
+  // slide
+  const lv=document.getElementById('notes-list-view');
+  const dv=document.getElementById('notes-detail-view');
+  if(lv)lv.classList.add('slide-out');
+  if(dv)dv.classList.add('slide-in');
+  setStatus('notes',note.title);
+}
+
+function notesGoBack(){
+  const lv=document.getElementById('notes-list-view');
+  const dv=document.getElementById('notes-detail-view');
+  if(dv)dv.classList.remove('slide-in');
+  if(lv)lv.classList.remove('slide-out');
+  currentNoteId=null;
+  setStatus('notes',`${notesData.length}개의 일기`);
+}
+
+function saveCurrentNote(){
+  if(!currentNoteId)return;
+  const note=notesData.find(n=>n.id===currentNoteId);
+  if(!note)return;
+  const ti=document.getElementById('note-title-input');
+  const bi=document.getElementById('note-body-input');
+  if(ti)note.title=ti.value;
+  if(bi)note.body=bi.innerText;
+  // refresh list
+  const dl=document.getElementById('diary-list');
+  if(dl)dl.innerHTML=renderDiaryList();
+  setStatus('notes','저장됨 ✓');
+  setTimeout(()=>setStatus('notes',note.title),1500);
+}
+
+function deleteCurrentNote(){
+  if(!currentNoteId)return;
+  if(!confirm('이 일기를 삭제할까요?'))return;
+  const idx=notesData.findIndex(n=>n.id===currentNoteId);
+  if(idx>-1)notesData.splice(idx,1);
+  const dl=document.getElementById('diary-list');
+  if(dl)dl.innerHTML=renderDiaryList();
+  notesGoBack();
+}
+
+function newNote(){
+  const id=Date.now();
+  const now=new Date();
+  const date=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+  notesData.unshift({id,title:'새 일기',date,body:''});
+  const dl=document.getElementById('diary-list');
+  if(dl)dl.innerHTML=renderDiaryList();
+  openNote(id);
+}
+
+/* ── Profile data (edit 가능) ── */
+const profileData = {
+  avatar: '🐾',
+  name: 'My Gallery Blog',
+  subtitle: '✦ Visual Diary',
+  bio: '사진과 음악 사이 어딘가에 살고 있습니다.\n빛이 좋은 날, 필름을 씁니다.\n작은 순간들을 기록합니다.',
+  stats: [{num:'142',lbl:'Posts'},{num:'38',lbl:'Albums'},{num:'8',lbl:'Images'}],
+  keywords: ['📷 Photography','🎵 Music','✈ Travel','🌿 Daily'],
+  imgUrl: '',
+};
+let profileUnlocked = false;
+
+function buildAbout(){
+  return `<div style="display:flex;flex-direction:column;height:100%;position:relative;">
+    <div style="padding:6px 12px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);
+      display:flex;align-items:center;justify-content:flex-end;flex-shrink:0;">
+      <button onclick="openProfileEdit()" style="
+        display:flex;align-items:center;gap:5px;
+        background:linear-gradient(135deg,var(--sky-light),var(--sky));
+        color:#1a5a8a;border:none;border-radius:16px;
+        padding:4px 13px;font-size:0.68rem;font-weight:700;cursor:pointer;
+        font-family:'Noto Sans KR',sans-serif;box-shadow:0 2px 6px var(--shadow);
+        transition:filter 0.15s;" onmouseover="this.style.filter='brightness(1.08)'" onmouseout="this.style.filter=''">
+        🔐
+      </button>
+    </div>
+    <div class="about-body" id="about-view" style="flex:1;overflow-y:auto;">
+      ${renderProfileView()}
+    </div>
+  </div>`;
+}
+
+function renderProfileView(){
+  const p = profileData;
+  const avatarHtml = p.imgUrl
+    ? `<img src="${p.imgUrl}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;box-shadow:0 4px 16px var(--shadow);margin:0 auto 14px;display:block;"/>`
+    : `<div class="about-avatar">${p.avatar}</div>`;
+  const kwHtml = p.keywords.map(k=>
+    `<span style="background:var(--sky-pale);border:1px solid var(--sky-light);border-radius:12px;padding:4px 12px;font-size:0.65rem;color:var(--sky-dark);">${k}</span>`
+  ).join('');
+  const statsHtml = p.stats.map(s=>
+    `<div class="stat-card"><div class="stat-num">${s.num}</div><div class="stat-lbl">${s.lbl}</div></div>`
+  ).join('');
+  return `
+    ${avatarHtml}
+    <div class="about-name">${p.name}</div>
+    <div style="font-size:0.7rem;color:var(--sky);margin-bottom:10px;">${p.subtitle}</div>
+    <div class="about-bio" style="white-space:pre-line;">${p.bio}</div>
+    <div class="about-stats">${statsHtml}</div>
+    <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">${kwHtml}</div>`;
+}
+
+function openProfileEdit(){
+  if(profileUnlocked){ showProfileEditor(); return; }
+  const modal = document.createElement('div');
+  modal.id = 'prof-pw-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,20,60,0.55);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:14px;padding:28px 28px 22px;width:280px;
+      box-shadow:0 16px 48px rgba(60,120,200,0.25);border:1px solid var(--sky-light);text-align:center;">
+      <div style="font-size:2rem;margin-bottom:8px;">✏️</div>
+      <div style="font-size:0.9rem;font-weight:700;color:var(--text);margin-bottom:4px;">프로필 편집</div>
+      <div style="font-size:0.72rem;color:var(--text-light);margin-bottom:16px;">관리자 비밀번호를 입력하세요</div>
+      <input id="prof-pw-input" type="password" placeholder="비밀번호 입력"
+        style="width:100%;border:1px solid var(--sky-light);border-radius:8px;padding:8px 12px;
+        font-size:0.85rem;outline:none;text-align:center;letter-spacing:0.15em;margin-bottom:10px;"
+        onkeydown="if(event.key==='Enter')checkProfilePW()"/>
+      <div id="prof-pw-err" style="font-size:0.65rem;color:#e05555;height:14px;margin-bottom:6px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="document.getElementById('prof-pw-modal').remove()"
+          style="flex:1;background:#f0f4f8;border:1px solid var(--gray2);border-radius:8px;
+          padding:7px;font-size:0.75rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button onclick="checkProfilePW()"
+          style="flex:1;background:linear-gradient(135deg,var(--sky),var(--sky-dark));
+          color:#fff;border:none;border-radius:8px;padding:7px;font-size:0.75rem;cursor:pointer;
+          font-weight:700;font-family:'Noto Sans KR',sans-serif;">확인</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(()=>document.getElementById('prof-pw-input')?.focus(), 100);
+}
+
+function checkProfilePW(){
+  const val = document.getElementById('prof-pw-input')?.value;
+  if(val === ADMIN_PW){
+    profileUnlocked = true;
+    document.getElementById('prof-pw-modal')?.remove();
+    showProfileEditor();
+  } else {
+    const err = document.getElementById('prof-pw-err');
+    if(err){ err.textContent='비밀번호가 틀렸어요 🔒'; setTimeout(()=>err.textContent='',1800); }
+    const inp = document.getElementById('prof-pw-input');
+    if(inp){ inp.value=''; inp.focus(); }
+  }
+}
+
+function showProfileEditor(){
+  const view = document.getElementById('about-view');
+  if(!view) return;
+  const p = profileData;
+  const emojiButtons = ['🌸','🐾','🌿','🎵','📷','⭐','🌙','🦊','🐰','🌺'].map(e=>
+    `<button onclick="setProfileEmoji('${e}')" style="background:#fff;border:1px solid var(--gray);border-radius:6px;width:28px;height:28px;font-size:0.9rem;cursor:pointer;">${e}</button>`
+  ).join('');
+  const statsInputs = p.stats.map((s,i)=>
+    `<div style="text-align:center;">
+      <div style="font-size:0.58rem;color:var(--text-light);margin-bottom:3px;">${s.lbl}</div>
+      <input id="edit-stat-${i}" value="${s.num}"
+        style="width:100%;border:1px solid var(--sky-light);border-radius:6px;
+        padding:5px 4px;font-size:0.82rem;font-weight:700;text-align:center;
+        outline:none;font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;"/>
+    </div>`
+  ).join('');
+  const kwItems = p.keywords.map((k,i)=>
+    `<div style="display:flex;align-items:center;gap:3px;background:#fff;
+      border:1px solid var(--sky-light);border-radius:12px;padding:3px 8px;">
+      <span style="font-size:0.68rem;color:var(--sky-dark);">${k}</span>
+      <button onclick="removeKeyword(${i})" style="background:none;border:none;
+        color:#e05555;cursor:pointer;font-size:0.65rem;padding:0;line-height:1;">✕</button>
+    </div>`
+  ).join('');
+  const previewInner = p.imgUrl
+    ? `<img src="${p.imgUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>`
+    : p.avatar;
+
+  view.innerHTML = `
+    <div style="padding:14px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;height:100%;box-sizing:border-box;">
+      <!-- 이미지 -->
+      <div style="background:var(--sky-ultra);border:1px solid var(--sky-light);border-radius:10px;padding:12px;">
+        <div style="font-size:0.68rem;font-weight:700;color:var(--sky-dark);margin-bottom:8px;">🖼 프로필 이미지</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div id="prof-img-preview" style="width:56px;height:56px;border-radius:50%;overflow:hidden;
+            background:linear-gradient(135deg,var(--sky-light),var(--sky));flex-shrink:0;
+            display:flex;align-items:center;justify-content:center;font-size:1.5rem;
+            box-shadow:0 2px 8px var(--shadow);">${previewInner}</div>
+          <div style="flex:1;">
+            <div style="position:relative;margin-bottom:6px;">
+              <input type="file" accept="image/*" id="prof-img-file"
+                style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;"
+                onchange="previewProfileImg(this)"/>
+              <div style="background:#fff;border:1px dashed var(--sky);border-radius:7px;
+                padding:6px;font-size:0.68rem;color:var(--sky-dark);text-align:center;cursor:pointer;">
+                📁 이미지 파일 선택</div>
+            </div>
+            <div style="font-size:0.6rem;color:var(--text-light);margin-bottom:4px;">이모지로 설정</div>
+            <div style="display:flex;gap:3px;flex-wrap:wrap;">${emojiButtons}</div>
+          </div>
+        </div>
+      </div>
+      <!-- 기본 정보 -->
+      <div style="background:var(--sky-ultra);border:1px solid var(--sky-light);border-radius:10px;padding:12px;">
+        <div style="font-size:0.68rem;font-weight:700;color:var(--sky-dark);margin-bottom:8px;">📝 기본 정보</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <div>
+            <div style="font-size:0.6rem;color:var(--text-light);margin-bottom:2px;">블로그 이름</div>
+            <input id="edit-name" value="${p.name}" style="width:100%;border:1px solid var(--sky-light);border-radius:6px;padding:5px 9px;font-size:0.78rem;outline:none;font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;"/>
+          </div>
+          <div>
+            <div style="font-size:0.6rem;color:var(--text-light);margin-bottom:2px;">부제</div>
+            <input id="edit-subtitle" value="${p.subtitle}" style="width:100%;border:1px solid var(--sky-light);border-radius:6px;padding:5px 9px;font-size:0.78rem;outline:none;font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;"/>
+          </div>
+          <div>
+            <div style="font-size:0.6rem;color:var(--text-light);margin-bottom:2px;">소개글</div>
+            <textarea id="edit-bio" rows="3" style="width:100%;border:1px solid var(--sky-light);border-radius:6px;padding:5px 9px;font-size:0.75rem;outline:none;resize:none;line-height:1.7;font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;">${p.bio}</textarea>
+          </div>
+        </div>
+      </div>
+      <!-- 통계 -->
+      <div style="background:var(--sky-ultra);border:1px solid var(--sky-light);border-radius:10px;padding:12px;">
+        <div style="font-size:0.68rem;font-weight:700;color:var(--sky-dark);margin-bottom:8px;">📊 통계 수치</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">${statsInputs}</div>
+      </div>
+      <!-- 키워드 -->
+      <div style="background:var(--sky-ultra);border:1px solid var(--sky-light);border-radius:10px;padding:12px;">
+        <div style="font-size:0.68rem;font-weight:700;color:var(--sky-dark);margin-bottom:8px;">🏷 키워드 태그</div>
+        <div id="kw-list" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px;">${kwItems}</div>
+        <div style="display:flex;gap:5px;">
+          <input id="kw-input" placeholder="새 키워드 (예: 🌸 Spring)"
+            style="flex:1;border:1px solid var(--sky-light);border-radius:6px;padding:4px 8px;font-size:0.7rem;outline:none;font-family:'Noto Sans KR',sans-serif;"
+            onkeydown="if(event.key==='Enter')addKeyword()"/>
+          <button onclick="addKeyword()" style="background:var(--sky);color:#fff;border:none;border-radius:6px;padding:4px 9px;font-size:0.68rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">추가</button>
+        </div>
+      </div>
+      <!-- 저장/취소 -->
+      <div style="display:flex;gap:8px;padding-bottom:6px;">
+        <button onclick="cancelProfileEdit()" style="flex:1;background:#f0f4f8;border:1px solid var(--gray2);border-radius:8px;padding:8px;font-size:0.75rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button onclick="saveProfileEdit()" style="flex:2;background:linear-gradient(135deg,var(--sky),var(--sky-dark));color:#fff;border:none;border-radius:8px;padding:8px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 저장하기</button>
+      </div>
+    </div>`;
+}
+
+function previewProfileImg(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    profileData.imgUrl = e.target.result;
+    profileData.avatar = '';
+    const prev = document.getElementById('prof-img-preview');
+    if(prev) prev.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function setProfileEmoji(emoji){
+  profileData.avatar = emoji;
+  profileData.imgUrl = '';
+  const prev = document.getElementById('prof-img-preview');
+  if(prev) prev.innerHTML = emoji;
+}
+
+function removeKeyword(idx){
+  profileData.keywords.splice(idx, 1);
+  refreshKwList();
+}
+
+function addKeyword(){
+  const inp = document.getElementById('kw-input');
+  if(!inp || !inp.value.trim()) return;
+  profileData.keywords.push(inp.value.trim());
+  inp.value = '';
+  refreshKwList();
+}
+
+function refreshKwList(){
+  const el = document.getElementById('kw-list');
+  if(!el) return;
+  el.innerHTML = profileData.keywords.map((k,i)=>`
+    <div style="display:flex;align-items:center;gap:3px;background:#fff;
+      border:1px solid var(--sky-light);border-radius:12px;padding:3px 8px;">
+      <span style="font-size:0.68rem;color:var(--sky-dark);">${k}</span>
+      <button onclick="removeKeyword(${i})" style="background:none;border:none;
+        color:#e05555;cursor:pointer;font-size:0.65rem;padding:0;line-height:1;">✕</button>
+    </div>`).join('');
+}
+
+function saveProfileEdit(){
+  const g = id => document.getElementById(id)?.value || '';
+  profileData.name     = g('edit-name') || profileData.name;
+  profileData.subtitle = g('edit-subtitle') || profileData.subtitle;
+  profileData.bio      = g('edit-bio') || profileData.bio;
+  profileData.stats.forEach((s,i)=>{ const v=g(`edit-stat-${i}`); if(v) s.num=v; });
+  const view = document.getElementById('about-view');
+  if(view) view.innerHTML = renderProfileView();
+}
+
+function cancelProfileEdit(){
+  const view = document.getElementById('about-view');
+  if(view) view.innerHTML = renderProfileView();
+}
+
+function initContent(id){
+  if(id==='music') initPlayer();
+  if(id==='upload') initDropZone();
+  if(id==='gallery') refreshGallery();
+  if(id==='chat') initChat();
+  if(id==='trash') initBoard();
+  if(id==='admin') initAdmin();
+}
+
+/* ─── Gallery refresh ─── */
+function refreshGallery(){
+  const inner=document.getElementById('gal-inner');
+  if(inner) inner.innerHTML=renderGalleryItems();
+}
+
+/* ─── Upload ─── */
+function initDropZone(){
+  const dz=document.getElementById('drop-zone');
+  if(!dz)return;
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.borderColor='var(--sky)';});
+  dz.addEventListener('dragleave',()=>{dz.style.borderColor='';});
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.style.borderColor='';handleFiles(e.dataTransfer.files);});
+}
+
+function handleFiles(files){
+  Array.from(files).forEach(file=>{
+    if(!file.type.startsWith('image/'))return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const src=e.target.result;
+      uploadedList.push({src,name:file.name,date:'방금',size:(file.size/1024/1024).toFixed(1)+' MB'});
+      const thumb=document.createElement('div');
+      thumb.style.cssText='border-radius:8px;overflow:hidden;aspect-ratio:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.1);';
+      thumb.innerHTML=`<img src="${src}" style="width:100%;height:100%;object-fit:cover;" onclick="openLB('${src}','')"/>`;
+      document.getElementById('up-thumbs')?.appendChild(thumb);
+      setStatus('upload',`${uploadedList.length}개 이미지 추가됨`);
+      refreshGallery();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function setStatus(id,txt){
+  const el=document.getElementById('status-'+id);
+  if(el)el.textContent=txt;
+}
+
+/* ─── Lightbox ─── */
+function openLB(src,ph){
+  const lb=document.getElementById('lightbox');
+  const img=document.getElementById('lb-img');
+  if(src){img.src=src;img.style.background='';}
+  else{img.src='';img.style.cssText=`width:500px;height:350px;background:${ph};border-radius:8px;`;}
+  lb.classList.add('open');
+}
+function closeLightbox(){document.getElementById('lightbox').classList.remove('open');}
+document.getElementById('lightbox').addEventListener('click',e=>{if(e.target===e.currentTarget)closeLightbox();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLightbox();});
+
+/* ─── Window focus on click ─── */
+document.addEventListener('mousedown',e=>{
+  const w=e.target.closest('.win');
+  if(w)focusWin(w);
+});
+
+/* ─── Chat ─── */
+const chatRooms=[
+  {id:'general',name:'방명록',dot:'#5bb8f5',messages:[
+    {from:'other',name:'하늘',avatar:'🌸',text:'안녕하세요! 블로그 너무 예뻐요 😊',time:'10:20'},
+    {from:'other',name:'하늘',avatar:'🌸',text:'사진들 어디서 찍으셨어요?',time:'10:21'},
+    {from:'me',text:'감사합니다 ☺️ 대부분 동네에서 찍었어요!',time:'10:22'},
+    {from:'other',name:'별이',avatar:'⭐',text:'저도 방금 팔로우했어요!',time:'10:25'},
+    {from:'me',text:'반가워요 ✨',time:'10:26'},
+  ]},
+];
+let currentRoom='general';
+
+const chatBotReplies={
+  general:['멋지네요! 😍','저도 그렇게 생각해요!','오! 진짜요?? 👀','완전 공감이에요 ✨','ㅋㅋㅋ 맞아요!','대박이다..','사진 더 올려주세요! 📸','블로그 자주 올게요 🌸'],
+  photo:['오 그런 방법이 있었군요!','필름값이 너무 올랐죠 😅','현상소 어디 가세요?','저도 배우고 싶어요!','셔터 속도가 핵심이죠 📷'],
+  music:['저도 그 아티스트 좋아해요!','플레이리스트 공유 감사해요 🎵','요즘 계속 들어요!','새벽에 듣기 좋은 음악이에요','같이 음악 얘기해요 🎧'],
+};
+
+function buildChat(){
+  return `
+  <div class="chat-wrap">
+    <div class="chat-header" style="display:flex;align-items:center;gap:6px;padding:8px 12px;">
+      <span style="font-size:0.75rem;font-weight:700;color:#fff;flex:1;">💬 방명록</span>
+      <button onclick="toggleChatAdmin()" title="관리자"
+        style="background:rgba(255,255,255,0.25);color:#fff;border:1px solid rgba(255,255,255,0.4);
+        border-radius:6px;padding:3px 9px;font-size:0.65rem;cursor:pointer;font-weight:700;
+        font-family:'Noto Sans KR',sans-serif;">🔐</button>
+    </div>
+    <!-- admin delete bar (hidden) -->
+    <div id="chat-admin-bar" style="display:none;padding:6px 12px;background:#fff3cd;
+      border-bottom:1px solid #ffc107;font-size:0.65rem;color:#856404;
+      display:none;align-items:center;gap:6px;">
+      <span>🔓 관리자 모드 — 메시지를 클릭하면 삭제됩니다</span>
+      <button onclick="toggleChatAdmin()" style="margin-left:auto;background:#ffc107;border:none;
+        border-radius:5px;padding:2px 8px;font-size:0.62rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">닫기</button>
+    </div>
+    <!-- nickname input -->
+    <div style="padding:6px 12px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);
+      display:flex;align-items:center;gap:6px;flex-shrink:0;">
+      <span style="font-size:0.62rem;color:var(--text-light);white-space:nowrap;">닉네임</span>
+      <input id="chat-nickname" placeholder="이름을 입력하세요" maxlength="10"
+        style="flex:1;border:1px solid var(--sky-light);border-radius:10px;padding:4px 10px;
+        font-size:0.7rem;outline:none;font-family:'Noto Sans KR',sans-serif;background:#fff;"/>
+    </div>
+    <div class="chat-messages" id="chat-messages">${renderMessages()}</div>
+    <div class="chat-inputbar">
+      <input class="chat-input" id="chat-input" placeholder="메시지를 입력하세요..." />
+      <button class="chat-send-btn" onclick="sendMsg()">➤</button>
+    </div>
+  </div>`;
+}
+
+let chatAdminUnlocked = false;
+let chatAdminMode = false;
+
+function toggleChatAdmin(){
+  if(chatAdminMode){
+    chatAdminMode = false;
+    const bar = document.getElementById('chat-admin-bar');
+    if(bar) bar.style.display='none';
+    refreshChatMessages();
+    return;
+  }
+  if(chatAdminUnlocked){ enterChatAdminMode(); return; }
+  const modal = document.createElement('div');
+  modal.id = 'cap-modal';
+  modal.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(0,20,60,0.55);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
+  modal.innerHTML=`<div style="background:#fff;border-radius:14px;padding:24px;width:260px;
+      box-shadow:0 16px 48px rgba(60,120,200,0.25);text-align:center;">
+      <div style="font-size:1.8rem;margin-bottom:6px;">🔐</div>
+      <div style="font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:12px;">방명록 관리자</div>
+      <input id="cap-pw" type="password" placeholder="비밀번호 입력"
+        style="width:100%;border:1px solid var(--sky-light);border-radius:8px;padding:7px 10px;
+        font-size:0.82rem;outline:none;text-align:center;letter-spacing:0.15em;margin-bottom:8px;"
+        onkeydown="if(event.key==='Enter')checkChatAdminPW()"/>
+      <div id="cap-err" style="font-size:0.62rem;color:#e05555;height:12px;margin-bottom:6px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="document.getElementById('cap-modal').remove()"
+          style="flex:1;background:#f0f4f8;border:1px solid var(--gray2);border-radius:8px;
+          padding:6px;font-size:0.72rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button onclick="checkChatAdminPW()"
+          style="flex:1;background:linear-gradient(135deg,var(--sky),var(--sky-dark));
+          color:#fff;border:none;border-radius:8px;padding:6px;font-size:0.72rem;cursor:pointer;
+          font-weight:700;font-family:'Noto Sans KR',sans-serif;">확인</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(()=>document.getElementById('cap-pw')?.focus(),80);
+}
+
+function checkChatAdminPW(){
+  const val=document.getElementById('cap-pw')?.value;
+  if(val===ADMIN_PW){
+    chatAdminUnlocked=true;
+    document.getElementById('cap-modal')?.remove();
+    enterChatAdminMode();
+  } else {
+    const err=document.getElementById('cap-err');
+    if(err){err.textContent='비밀번호가 틀렸어요';setTimeout(()=>err.textContent='',1500);}
+    const inp=document.getElementById('cap-pw');
+    if(inp){inp.value='';inp.focus();}
+  }
+}
+
+function enterChatAdminMode(){
+  chatAdminMode=true;
+  const bar=document.getElementById('chat-admin-bar');
+  if(bar) bar.style.display='flex';
+  refreshChatMessages();
+}
+
+function refreshChatMessages(){
+  const cm=document.getElementById('chat-messages');
+  if(cm){cm.innerHTML=renderMessages();scrollChat();}
+}
+
+function deleteChatMsg(roomId, idx){
+  const room=chatRooms.find(r=>r.id===roomId);
+  if(room) room.messages.splice(idx,1);
+  refreshChatMessages();
+}
+
+function renderMessages(){
+  const room=chatRooms.find(r=>r.id===currentRoom);
+  if(!room)return '';
+  let html=`<div class="chat-day">오늘</div>`;
+  room.messages.forEach((m,idx)=>{
+    const delBtn=chatAdminMode
+      ? `<button onclick="deleteChatMsg('${currentRoom}',${idx})"
+          style="background:#ffecec;border:1px solid #ffaaaa;border-radius:4px;
+          padding:1px 5px;font-size:0.55rem;color:#e05555;cursor:pointer;margin-left:4px;
+          vertical-align:middle;">✕</button>` : '';
+    if(m.from==='me'){
+      html+=`<div class="msg-row me">
+        <div class="msg-col">
+          <div style="display:flex;align-items:center;justify-content:flex-end;">
+            ${delBtn}
+            <div class="msg-bubble">${m.text}</div>
+          </div>
+          <div class="msg-time">${m.time}</div>
+        </div>
+      </div>`;
+    } else {
+      const initials=(m.name||'?').charAt(0);
+      html+=`<div class="msg-row">
+        <div class="msg-avatar" style="background:linear-gradient(135deg,#a8d8f8,#5bb8f5);font-size:0.75rem;color:#fff;font-weight:700;">${initials}</div>
+        <div class="msg-col">
+          <div class="msg-name">${m.name||'익명'}</div>
+          <div style="display:flex;align-items:center;">
+            <div class="msg-bubble">${m.text}</div>
+            ${delBtn}
+          </div>
+          <div class="msg-time">${m.time}</div>
+        </div>
+      </div>`;
+    }
+  });
+  return html;
+}
+
+function scrollChat(){
+  const el=document.getElementById('chat-messages');
+  if(el) el.scrollTop=el.scrollHeight;
+}
+
+function initChat(){
+  scrollChat();
+  const input=document.getElementById('chat-input');
+  if(input){
+    input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
+  }
+}
+
+function switchRoom(id){
+  currentRoom=id;
+  const rl=document.getElementById('chat-room-list');
+  if(rl) rl.innerHTML=chatRooms.map(r=>`
+    <button class="chat-room-btn${r.id===currentRoom?' active':''}" onclick="switchRoom('${r.id}')">
+      <span class="room-dot" style="background:${r.dot}"></span>${r.name}
+    </button>`).join('');
+  const cm=document.getElementById('chat-messages');
+  if(cm){cm.innerHTML=renderMessages();scrollChat();}
+}
+
+function sendMsg(){
+  const input=document.getElementById('chat-input');
+  if(!input||!input.value.trim())return;
+  const text=input.value.trim();
+  const nick=(document.getElementById('chat-nickname')?.value.trim())||'익명';
+  input.value='';
+  const now=new Date();
+  const time=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  const room=chatRooms.find(r=>r.id===currentRoom);
+  room.messages.push({from:'me',name:nick,text,time});
+  const cm=document.getElementById('chat-messages');
+  if(!cm)return;
+  // append my bubble
+  const myDiv=document.createElement('div');
+  myDiv.className='msg-row me';
+  myDiv.innerHTML=`<div class="msg-col">
+    <div class="msg-bubble">${text}</div>
+    <div class="msg-time">${time}</div>
+  </div>`;
+  cm.appendChild(myDiv);
+  scrollChat();
+  // typing indicator + bot reply
+  setTimeout(()=>{
+    const typing=document.createElement('div');
+    typing.className='msg-row';
+    const bot=getBotInfo(currentRoom);
+    typing.innerHTML=`<div class="msg-avatar" style="background:linear-gradient(135deg,#a8d8f8,#5bb8f5)">${bot.avatar}</div>
+      <div class="msg-col"><div class="typing-bubble">
+        <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+      </div></div>`;
+    typing.id='typing-indicator';
+    cm.appendChild(typing);scrollChat();
+    setTimeout(()=>{
+      typing.remove();
+      const replies=chatBotReplies[currentRoom]||chatBotReplies.general;
+      const reply=replies[Math.floor(Math.random()*replies.length)];
+      const replyTime=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      room.messages.push({from:'other',name:bot.name,avatar:bot.avatar,text:reply,time:replyTime});
+      const rd=document.createElement('div');
+      rd.className='msg-row';
+      rd.innerHTML=`<div class="msg-avatar" style="background:linear-gradient(135deg,#a8d8f8,#5bb8f5)">${bot.avatar}</div>
+        <div class="msg-col">
+          <div class="msg-name">${bot.name}</div>
+          <div class="msg-bubble">${reply}</div>
+          <div class="msg-time">${replyTime}</div>
+        </div>`;
+      cm.appendChild(rd);scrollChat();
+    },1200+Math.random()*800);
+  },600+Math.random()*400);
+}
+
+function getBotInfo(roomId){
+  const bots={
+    general:{name:'하늘',avatar:'🌸'},
+    photo:{name:'달빛',avatar:'🌙'},
+    music:{name:'파도',avatar:'🌊'},
+  };
+  return bots[roomId]||{name:'친구',avatar:'😊'};
+}
+
+const emojis=['😊','😍','🥰','✨','🌸','📷','🎵','💙','🌿','🌙','⭐','💬'];
+let emojiIdx=0;
+function insertEmoji(){
+  const input=document.getElementById('chat-input');
+  if(input){input.value+=emojis[emojiIdx%emojis.length];emojiIdx++;input.focus();}
+}
+
+
+/* ─── Admin Panel ─── */
+let adminUnlocked = false;
+
+/* 테마 상태 */
+const themeState = {
+  taskbarColor: 'rgba(120,195,250,0.92)',
+  taskbarColor2: 'rgba(80,160,230,0.96)',
+  winTitleColor: '#a8d8f8',
+  winTitleColor2: '#78c1f0',
+  wallpaperBg: 'linear-gradient(160deg,#d6eeff 0%,#eaf6ff 40%,#f5faff 70%,#fff 100%)',
+  wallpaperImg: '',
+  iconBg: {
+    about:  null, gallery: null, music: null,
+    notes:  null, trash:   null, chat:  null,
+  }
+};
+
+function openAdminPanel(){
+  if(adminUnlocked){ openWin('admin'); return; }
+  const modal = document.createElement('div');
+  modal.id = 'adm-pw-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,20,60,0.55);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:14px;padding:28px 28px 22px;width:280px;
+      box-shadow:0 16px 48px rgba(60,120,200,0.25);border:1px solid var(--sky-light);text-align:center;">
+      <div style="font-size:2rem;margin-bottom:8px;">⚙️</div>
+      <div style="font-size:0.9rem;font-weight:700;color:var(--text);margin-bottom:4px;">관리자 패널</div>
+      <div style="font-size:0.72rem;color:var(--text-light);margin-bottom:16px;">비밀번호를 입력하세요</div>
+      <input id="adm-pw-input" type="password" placeholder="비밀번호 입력"
+        style="width:100%;border:1px solid var(--sky-light);border-radius:8px;padding:8px 12px;
+        font-size:0.85rem;outline:none;text-align:center;letter-spacing:0.15em;margin-bottom:10px;"
+        onkeydown="if(event.key==='Enter')checkAdminPW()"/>
+      <div id="adm-pw-err" style="font-size:0.65rem;color:#e05555;height:14px;margin-bottom:6px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="document.getElementById('adm-pw-modal').remove()"
+          style="flex:1;background:#f0f4f8;border:1px solid var(--gray2);border-radius:8px;
+          padding:7px;font-size:0.75rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button onclick="checkAdminPW()"
+          style="flex:1;background:linear-gradient(135deg,var(--sky),var(--sky-dark));
+          color:#fff;border:none;border-radius:8px;padding:7px;font-size:0.75rem;cursor:pointer;
+          font-weight:700;font-family:'Noto Sans KR',sans-serif;">확인</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(()=>document.getElementById('adm-pw-input')?.focus(), 100);
+}
+
+function checkAdminPW(){
+  const val = document.getElementById('adm-pw-input')?.value;
+  if(val === ADMIN_PW){
+    adminUnlocked = true;
+    document.getElementById('adm-pw-modal')?.remove();
+    openWin('admin');
+  } else {
+    const err = document.getElementById('adm-pw-err');
+    if(err){ err.textContent='비밀번호가 틀렸어요 🔒'; setTimeout(()=>err.textContent='',1800); }
+    const inp = document.getElementById('adm-pw-input');
+    if(inp){ inp.value=''; inp.focus(); }
+  }
+}
+
+function buildAdmin(){
+  return `<div style="display:flex;flex-direction:column;height:100%;overflow-y:auto;background:#f7fbff;">
+    <div style="padding:10px 14px 6px;font-size:0.7rem;font-weight:700;color:var(--sky-dark);
+      background:var(--sky-ultra);border-bottom:1px solid var(--gray);flex-shrink:0;">
+      ⚙️ 관리자 설정
+    </div>
+    <div style="padding:12px;display:flex;flex-direction:column;gap:10px;">
+
+      <!-- 바탕화면 배경 -->
+      <div class="adm-section">
+        <div class="adm-title">🖼 바탕화면 배경</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="font-size:0.62rem;color:var(--text-light);margin-bottom:2px;">그라디언트 배경색</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            ${[
+              ['하늘','linear-gradient(160deg,#d6eeff 0%,#eaf6ff 40%,#f5faff 70%,#fff 100%)','#d6eeff'],
+              ['라벤더','linear-gradient(160deg,#e8d6ff 0%,#f3eaff 40%,#faf5ff 70%,#fff 100%)','#e8d6ff'],
+              ['민트','linear-gradient(160deg,#d6ffe8 0%,#eafff3 40%,#f5fffa 70%,#fff 100%)','#d6ffe8'],
+              ['복숭아','linear-gradient(160deg,#ffe8d6 0%,#fff3ea 40%,#fffaf5 70%,#fff 100%)','#ffe8d6'],
+              ['레몬','linear-gradient(160deg,#fffbd6 0%,#fffde8 40%,#fffff5 70%,#fff 100%)','#fffbd6'],
+              ['장미','linear-gradient(160deg,#ffd6e8 0%,#ffeaf3 40%,#fff5fa 70%,#fff 100%)','#ffd6e8'],
+            ].map(([name,grad,c])=>
+              `<button onclick="setWallpaperGrad('${grad.replace(/'/g,'"')}')"
+                style="width:36px;height:36px;background:${grad};border:2px solid #ccc;border-radius:6px;
+                cursor:pointer;font-size:0.55rem;color:#555;transition:border-color 0.15s;"
+                title="${name}" onmouseover="this.style.borderColor='var(--sky)'" onmouseout="this.style.borderColor='#ccc'">
+                ${name}</button>`
+            ).join('')}
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+            <div style="font-size:0.62rem;color:var(--text-light);">이미지 업로드</div>
+            <div style="position:relative;flex:1;">
+              <input type="file" accept="image/*" onchange="setWallpaperImg(this)"
+                style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;"/>
+              <div style="background:#fff;border:1px dashed var(--sky);border-radius:6px;
+                padding:5px 8px;font-size:0.65rem;color:var(--sky-dark);text-align:center;cursor:pointer;">
+                📁 파일 선택</div>
+            </div>
+            <button onclick="resetWallpaper()" style="background:#f0f4f8;border:1px solid var(--gray2);
+              border-radius:6px;padding:5px 8px;font-size:0.65rem;cursor:pointer;white-space:nowrap;
+              font-family:'Noto Sans KR',sans-serif;">초기화</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 아이콘 이미지 변경 -->
+      <div class="adm-section">
+        <div class="adm-title">🎨 아이콘 이미지 변경</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
+          ${[
+            ['about','프로필'],['gallery','그림'],['music','음악'],
+            ['notes','메모장'],['chat','방명록'],['trash','휴지통'],
+          ].map(([id,name])=>`
+            <div style="background:#fff;border:1px solid var(--gray);border-radius:8px;
+              padding:6px;text-align:center;position:relative;">
+              <div id="adm-icon-prev-${id}" style="width:32px;height:32px;margin:0 auto 4px;
+                border-radius:6px;overflow:hidden;background:var(--sky-pale);
+                display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--sky-dark);">
+                현재</div>
+              <div style="font-size:0.6rem;color:var(--text-light);margin-bottom:4px;">${name}</div>
+              <div style="position:relative;">
+                <input type="file" accept="image/*" onchange="setIconImg('${id}',this)"
+                  style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;"/>
+                <div style="background:var(--sky-pale);border:1px solid var(--sky-light);
+                  border-radius:5px;padding:3px;font-size:0.6rem;color:var(--sky-dark);cursor:pointer;">변경</div>
+              </div>
+              <button onclick="resetIconImg('${id}')" style="margin-top:3px;background:none;border:none;
+                font-size:0.58rem;color:var(--gray3);cursor:pointer;">초기화</button>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- 색상 테마 -->
+      <div class="adm-section">
+        <div class="adm-title">🎨 색상 테마</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="font-size:0.62rem;color:var(--text-light);margin-bottom:2px;">프리셋 테마</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            ${Object.entries(THEMES).map(([key,th])=>
+              `<button onclick="applyThemePreset('${key}')"
+                style="padding:5px 10px;background:linear-gradient(135deg,${th.taskbar1},${th.taskbar2});
+                border:2px solid rgba(255,255,255,0.5);border-radius:8px;cursor:pointer;
+                font-size:0.65rem;color:${th.isDark?'#eee':'#fff'};font-weight:700;
+                font-family:'Noto Sans KR',sans-serif;text-shadow:0 1px 2px rgba(0,0,0,0.3);
+                transition:transform 0.15s;"
+                onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform=''">
+                ${th.name}</button>`
+            ).join('')}
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
+            <div>
+              <div style="font-size:0.6rem;color:var(--text-light);margin-bottom:3px;">상태표시줄 색상</div>
+              <input type="color" value="#5bb8f5" id="taskbar-color-pick"
+                onchange="setTaskbarColor(this.value)"
+                style="width:100%;height:28px;border:1px solid var(--sky-light);border-radius:6px;cursor:pointer;padding:2px;"/>
+            </div>
+            <div>
+              <div style="font-size:0.6rem;color:var(--text-light);margin-bottom:3px;">창 제목바 색상</div>
+              <input type="color" value="#a8d8f8" id="wintitle-color-pick"
+                onchange="setWinTitleColor(this.value)"
+                style="width:100%;height:28px;border:1px solid var(--sky-light);border-radius:6px;cursor:pointer;padding:2px;"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 저장 -->
+      <button onclick="showAdminStatus()"
+        style="background:linear-gradient(135deg,var(--sky),var(--sky-dark));color:#fff;border:none;
+        border-radius:8px;padding:10px;font-size:0.78rem;font-weight:700;cursor:pointer;
+        font-family:'Noto Sans KR',sans-serif;">✅ 현재 상태 확인</button>
+
+    </div>
+  </div>`;
+}
+
+function initAdmin(){
+  // fill icon previews with current SVG thumbnails
+  ['about','gallery','music','notes','chat','trash'].forEach(id=>{
+    const prev = document.getElementById('adm-icon-prev-'+id);
+    if(!prev) return;
+    if(themeState.iconBg[id]){
+      prev.innerHTML = `<img src="${themeState.iconBg[id]}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;"/>`;
+    }
+  });
+}
+
+function showAdminStatus(){
+  alert("테마가 현재 세션에 적용됐어요! \n새로고침 시 초기화됩니다.");
+}
+
+/* wallpaper */
+function setWallpaperGrad(grad){
+  document.body.style.background = grad;
+  themeState.wallpaperBg = grad;
+  themeState.wallpaperImg = '';
+}
+function setWallpaperImg(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.body.style.background = `url('${e.target.result}') center/cover no-repeat fixed`;
+    themeState.wallpaperImg = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function resetWallpaper(){
+  document.body.style.background = 'linear-gradient(160deg,#d6eeff 0%,#eaf6ff 40%,#f5faff 70%,#fff 100%)';
+}
+
+/* icon image */
+function setIconImg(iconId, input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    themeState.iconBg[iconId] = e.target.result;
+    // find desktop icon by matching its label
+    const labels = document.querySelectorAll('.desk-icon .icon-label');
+    const labelMap = {about:'프로필',gallery:'그림',music:'음악',notes:'메모장',chat:'방명록',trash:'휴지통'};
+    labels.forEach(lbl => {
+      if(lbl.textContent.trim() === labelMap[iconId]){
+        const imgEl = lbl.previousElementSibling;
+        if(imgEl){
+          imgEl.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;"/>`;
+        }
+      }
+    });
+    // update preview in admin panel
+    const prev = document.getElementById('adm-icon-prev-'+iconId);
+    if(prev) prev.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;"/>`;
+  };
+  reader.readAsDataURL(file);
+}
+function resetIconImg(iconId){
+  themeState.iconBg[iconId] = null;
+  const prev = document.getElementById('adm-icon-prev-'+iconId);
+  if(prev) prev.innerHTML = '현재';
+  // reload page icons to original SVG — re-open admin to see
+  alert('초기화하려면 창을 닫고 다시 열어주세요.');
+}
+
+/* ── THEME PRESETS ── */
+const THEMES = {
+  sky: {
+    name:'하늘', isDark:false,
+    taskbar1:'rgba(120,195,250,0.92)', taskbar2:'rgba(80,160,230,0.96)',
+    title1:'#a8d8f8', title2:'#78c1f0',
+    sky:'#5bb8f5', skyDark:'#3a9ee0', skyLight:'#a8d8f8',
+    skyPale:'#e8f5fd', skyUltra:'#f0f9ff',
+    shadow:'rgba(80,130,180,0.18)', shadow2:'rgba(60,100,150,0.28)',
+    text:'#2c3a48', textLight:'#5a6b7a',
+    menuBg:'linear-gradient(to bottom,#e8f5fd,#d8effa)',
+    winBg:'#fff', contentBg:'#fff',
+    listHover:'#e8f5fd', listBorder:'#e8edf2',
+    btnBg:'linear-gradient(to bottom,#fff,#e0f0fb)',
+    addrBg:'#fff', addrText:'#3a9ee0',
+    statBg:'#e8f5fd', statBorder:'#a8d8f8',
+    tagBg:'#e8f5fd', tagBorder:'#a8d8f8', tagText:'#3a9ee0',
+    inputBorder:'#a8d8f8', focusColor:'#5bb8f5',
+    newNoteBtn:'#5bb8f5', plActive:'#e0f2ff',
+    chatBubbleMe1:'#74c0fc', chatBubbleMe2:'#4dabf7',
+  },
+  lavender: {
+    name:'라벤더', isDark:false,
+    taskbar1:'rgba(180,140,240,0.92)', taskbar2:'rgba(140,100,210,0.96)',
+    title1:'#c8a8f8', title2:'#a878e8',
+    sky:'#b07fe8', skyDark:'#8855cc', skyLight:'#d0b0f8',
+    skyPale:'#f0e8ff', skyUltra:'#f8f2ff',
+    shadow:'rgba(130,80,200,0.15)', shadow2:'rgba(100,60,180,0.25)',
+    text:'#2e2040', textLight:'#6a5080',
+    menuBg:'linear-gradient(to bottom,#ede0ff,#e0d0f8)',
+    winBg:'#fdfaff', contentBg:'#fdfaff',
+    listHover:'#f0e8ff', listBorder:'#ebe0f8',
+    btnBg:'linear-gradient(to bottom,#fff,#eee0ff)',
+    addrBg:'#fff', addrText:'#8855cc',
+    statBg:'#f0e8ff', statBorder:'#d0b0f8',
+    tagBg:'#f0e8ff', tagBorder:'#d0b0f8', tagText:'#8855cc',
+    inputBorder:'#d0b0f8', focusColor:'#b07fe8',
+    newNoteBtn:'#b07fe8', plActive:'#ede0ff',
+    chatBubbleMe1:'#c084fc', chatBubbleMe2:'#a855f7',
+  },
+  mint: {
+    name:'민트', isDark:false,
+    taskbar1:'rgba(100,210,170,0.92)', taskbar2:'rgba(60,180,140,0.96)',
+    title1:'#90e0c0', title2:'#60c8a0',
+    sky:'#40bfa0', skyDark:'#208870', skyLight:'#90dcc0',
+    skyPale:'#e0f8f0', skyUltra:'#f0fff8',
+    shadow:'rgba(40,160,120,0.15)', shadow2:'rgba(20,130,100,0.25)',
+    text:'#1a3028', textLight:'#4a7060',
+    menuBg:'linear-gradient(to bottom,#d8f5ec,#c8ede0)',
+    winBg:'#f8fffc', contentBg:'#f8fffc',
+    listHover:'#e0f8f0', listBorder:'#d8f0e8',
+    btnBg:'linear-gradient(to bottom,#fff,#d8f5ec)',
+    addrBg:'#fff', addrText:'#208870',
+    statBg:'#e0f8f0', statBorder:'#90dcc0',
+    tagBg:'#e0f8f0', tagBorder:'#90dcc0', tagText:'#208870',
+    inputBorder:'#90dcc0', focusColor:'#40bfa0',
+    newNoteBtn:'#40bfa0', plActive:'#d8f8ee',
+    chatBubbleMe1:'#4dd0a0', chatBubbleMe2:'#20b080',
+  },
+  peach: {
+    name:'복숭아', isDark:false,
+    taskbar1:'rgba(250,180,140,0.92)', taskbar2:'rgba(230,140,100,0.96)',
+    title1:'#f8c8a0', title2:'#e8a878',
+    sky:'#e8905a', skyDark:'#c8683a', skyLight:'#f8c0a0',
+    skyPale:'#fff0e8', skyUltra:'#fff8f4',
+    shadow:'rgba(200,100,60,0.15)', shadow2:'rgba(180,80,40,0.22)',
+    text:'#3a2010', textLight:'#7a5040',
+    menuBg:'linear-gradient(to bottom,#fce8d8,#f8d8c0)',
+    winBg:'#fffaf7', contentBg:'#fffaf7',
+    listHover:'#fff0e8', listBorder:'#f8e0d0',
+    btnBg:'linear-gradient(to bottom,#fff,#fde8d8)',
+    addrBg:'#fff', addrText:'#c8683a',
+    statBg:'#fff0e8', statBorder:'#f8c0a0',
+    tagBg:'#fff0e8', tagBorder:'#f8c0a0', tagText:'#c8683a',
+    inputBorder:'#f8c0a0', focusColor:'#e8905a',
+    newNoteBtn:'#e8905a', plActive:'#fde8d8',
+    chatBubbleMe1:'#f8a070', chatBubbleMe2:'#e88050',
+  },
+  rose: {
+    name:'장미', isDark:false,
+    taskbar1:'rgba(240,150,180,0.92)', taskbar2:'rgba(210,110,150,0.96)',
+    title1:'#f8b0c8', title2:'#e888a8',
+    sky:'#e06090', skyDark:'#c04070', skyLight:'#f0a0c0',
+    skyPale:'#ffe8f2', skyUltra:'#fff4f8',
+    shadow:'rgba(200,80,120,0.15)', shadow2:'rgba(180,60,100,0.22)',
+    text:'#3a1020', textLight:'#7a4060',
+    menuBg:'linear-gradient(to bottom,#fcd8e8,#f8c8dc)',
+    winBg:'#fffafc', contentBg:'#fffafc',
+    listHover:'#ffe8f2', listBorder:'#f8d8e8',
+    btnBg:'linear-gradient(to bottom,#fff,#fde8f2)',
+    addrBg:'#fff', addrText:'#c04070',
+    statBg:'#ffe8f2', statBorder:'#f0a0c0',
+    tagBg:'#ffe8f2', tagBorder:'#f0a0c0', tagText:'#c04070',
+    inputBorder:'#f0a0c0', focusColor:'#e06090',
+    newNoteBtn:'#e06090', plActive:'#fde0ec',
+    chatBubbleMe1:'#f080b0', chatBubbleMe2:'#e06090',
+  },
+  night: {
+    name:'밤', isDark:true,
+    taskbar1:'rgba(40,50,80,0.97)', taskbar2:'rgba(20,28,55,0.99)',
+    title1:'#2a3458', title2:'#1a2240',
+    sky:'#6888cc', skyDark:'#8aabee', skyLight:'#3a4878',
+    skyPale:'#1e2640', skyUltra:'#161e38',
+    shadow:'rgba(10,15,40,0.4)', shadow2:'rgba(5,10,30,0.5)',
+    text:'#c8d4f0', textLight:'#8090b8',
+    menuBg:'linear-gradient(to bottom,#1e2640,#18203a)',
+    winBg:'#141c30', contentBg:'#141c30',
+    listHover:'#1e2848', listBorder:'#242e50',
+    btnBg:'linear-gradient(to bottom,#2a3458,#1e2848)',
+    addrBg:'#1e2848', addrText:'#8aabee',
+    statBg:'#1e2640', statBorder:'#3a4878',
+    tagBg:'#1e2640', tagBorder:'#3a4878', tagText:'#8aabee',
+    inputBorder:'#3a4878', focusColor:'#6888cc',
+    newNoteBtn:'#4a68aa', plActive:'#242e58',
+    chatBubbleMe1:'#3a5898', chatBubbleMe2:'#2a4880',
+  },
+};
+
+function applyThemePreset(key){
+  const th = THEMES[key];
+  if(!th) return;
+
+  // ① CSS 변수 업데이트
+  const root = document.documentElement;
+  root.style.setProperty('--sky', th.sky);
+  root.style.setProperty('--sky-dark', th.skyDark);
+  root.style.setProperty('--sky-light', th.skyLight);
+  root.style.setProperty('--sky-pale', th.skyPale);
+  root.style.setProperty('--sky-ultra', th.skyUltra);
+  root.style.setProperty('--shadow', th.shadow);
+  root.style.setProperty('--shadow2', th.shadow2);
+  root.style.setProperty('--text', th.text);
+  root.style.setProperty('--text-light', th.textLight);
+
+  // ② 상태표시줄
+  const tb = document.getElementById('taskbar');
+  if(tb) tb.style.background = `linear-gradient(to bottom,${th.taskbar1},${th.taskbar2})`;
+
+  // ③ 모든 창 일괄 업데이트
+  document.querySelectorAll('.win-title').forEach(el=>{
+    el.style.background = `linear-gradient(to bottom,${th.title1},${th.title2})`;
+  });
+
+  // ④ dynamic CSS — 새 창 + 내부 요소 전체
+  let style = document.getElementById('dynamic-theme-style');
+  if(!style){ style=document.createElement('style'); style.id='dynamic-theme-style'; document.head.appendChild(style); }
+
+  const isDark = th.isDark;
+  style.textContent = `
+    .win-title { background:linear-gradient(to bottom,${th.title1},${th.title2}) !important; }
+    .win-menubar { background:${th.menuBg} !important; border-bottom-color:${th.skyLight} !important; }
+    .win-statusbar { background:${th.menuBg} !important; border-top-color:${th.skyLight} !important; }
+    .win-content,.win { background:${th.winBg} !important; }
+    .win { border-color:${th.skyLight}44 !important; }
+
+    /* address bar */
+    .win-addr { background:${th.addrBg} !important; border-color:${th.skyLight} !important; }
+    .win-addr-text { color:${th.addrText} !important; }
+    .addr-icon { color:${th.sky} !important; }
+    .menu-nav-btn { background:${th.btnBg} !important; border-color:${th.skyLight} !important; color:${th.skyDark} !important; }
+    .menu-nav-btn:hover { background:${th.skyPale} !important; }
+
+    /* gallery */
+    .gallery-toolbar { background:${th.skyUltra} !important; border-color:${th.listBorder} !important; }
+    .view-btn { background:${th.winBg} !important; border-color:${th.skyLight} !important; color:${th.text} !important; }
+    .view-btn:hover,.view-btn.active { background:${th.sky} !important; color:#fff !important; }
+    .gal-thumb:hover { border-color:${th.skyLight} !important; }
+    .gal-thumb.selected { border-color:${th.sky} !important; }
+    .list-item:hover { background:${th.skyPale} !important; }
+    .list-item { border-color:${th.listBorder} !important; }
+    .upload-drop { background:${th.skyUltra} !important; border-color:${th.skyLight} !important; }
+    .upload-drop:hover { background:${th.skyPale} !important; border-color:${th.sky} !important; }
+
+    /* notes / diary */
+    .notes-list-toolbar { background:${th.skyUltra} !important; border-color:${th.listBorder} !important; }
+    .new-note-btn { background:${th.newNoteBtn} !important; }
+    .diary-item:hover { background:${th.skyPale} !important; }
+    .diary-item { border-color:${th.listBorder} !important; }
+    .diary-date-badge { background:linear-gradient(135deg,${th.skyLight},${th.sky}) !important; }
+    .diary-date-badge .day,.diary-date-badge .mon { color:${isDark?'#eee':'#1a5a8a'} !important; }
+    .notes-detail-toolbar { background:${th.skyUltra} !important; border-color:${th.listBorder} !important; }
+    .back-btn { background:${th.btnBg} !important; border-color:${th.skyLight} !important; color:${th.skyDark} !important; }
+    .detail-paper { background:${isDark?th.winBg:'linear-gradient(to bottom,#fffef8,#fff)'} !important; }
+    .fmt-btn { background:${th.winBg} !important; border-color:${th.listBorder} !important; }
+    .fmt-btn:hover { background:${th.skyPale} !important; }
+
+    /* music */
+    .music-body { background:${isDark?th.winBg:'linear-gradient(160deg,#f0f9ff,#fff)'} !important; }
+    .now-playing { background:linear-gradient(135deg,${th.sky},${th.skyDark}) !important; }
+    .pl-list { background:${th.skyUltra} !important; border-color:${th.listBorder} !important; }
+    .pl-item:hover { background:${th.skyPale} !important; }
+    .pl-item.active { background:${th.plActive} !important; }
+    .pl-item { border-color:${th.listBorder} !important; }
+    .pl-item.active .pl-name { color:${th.skyDark} !important; }
+
+    /* about */
+    .about-body { background:${th.winBg} !important; }
+    .about-avatar { background:linear-gradient(135deg,${th.sky},${th.skyDark}) !important; }
+    .about-name { color:${th.text} !important; }
+    .stat-card { background:${th.statBg} !important; border-color:${th.statBorder} !important; }
+    .stat-num { color:${th.skyDark} !important; }
+
+    /* chat */
+    .chat-wrap { background:${isDark?th.winBg:'#f4f9fd'} !important; }
+    .chat-header { background:linear-gradient(135deg,${th.sky},${th.skyDark}) !important; }
+    .chat-room-btn { background:rgba(255,255,255,0.2) !important; }
+    .chat-room-btn.active { background:rgba(255,255,255,0.45) !important; color:${isDark?'#eee':'#1a5a8a'} !important; }
+    .chat-input { border-color:${th.skyLight} !important; }
+    .chat-input:focus { border-color:${th.sky} !important; }
+    .chat-send-btn { background:linear-gradient(135deg,${th.sky},${th.skyDark}) !important; }
+    .msg-bubble { background:${th.winBg} !important; border-color:${th.listBorder} !important; color:${th.text} !important; }
+    .msg-row.me .msg-bubble { background:linear-gradient(135deg,${th.chatBubbleMe1},${th.chatBubbleMe2}) !important; color:#fff !important; }
+    .typing-bubble { background:${th.winBg} !important; border-color:${th.listBorder} !important; }
+
+    /* admin */
+    .adm-section { background:${th.winBg} !important; border-color:${th.skyLight} !important; }
+    .adm-title { color:${th.skyDark} !important; }
+
+    /* scrollbar */
+    .win-content::-webkit-scrollbar-thumb { background:${th.skyLight} !important; }
+
+    /* tag keywords */
+    span[style*="sky-pale"] { background:${th.tagBg} !important; border-color:${th.tagBorder} !important; color:${th.tagText} !important; }
+
+    /* input focus rings */
+    input[type=range] { accent-color:${th.sky} !important; }
+
+    /* desk icon hover */
+    .desk-icon:hover { background:${th.sky}28 !important; }
+    .desk-icon.selected { background:${th.sky}44 !important; }
+    .icon-label { color:${isDark?'#eee':th.text} !important; }
+  `;
+}
+
+/* colour picker shortcuts (still work for manual) */
+function applyTheme(t1,t2,w1,w2){ /* legacy — kept for compatibility */ }
+function setTaskbarColor(hex){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  const tb=document.getElementById('taskbar');
+  if(tb) tb.style.background=`linear-gradient(to bottom,rgba(${r},${g},${b},0.92),rgba(${Math.max(0,r-40)},${Math.max(0,g-35)},${Math.max(0,b-20)},0.96))`;
+}
+function setWinTitleColor(hex){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  document.querySelectorAll('.win-title').forEach(el=>{
+    el.style.background=`linear-gradient(to bottom,rgb(${r},${g},${b}),rgb(${Math.max(0,r-30)},${Math.max(0,g-28)},${Math.max(0,b-16)}))`;
+  });
+}
+
+/* ─── desktop hint ─── */
+// show hint on first load
+setTimeout(()=>{
+  const hint=document.createElement('div');
+  hint.style.cssText='position:fixed;bottom:60px;right:20px;background:rgba(91,184,245,0.9);color:#fff;padding:10px 16px;border-radius:8px;font-size:0.72rem;z-index:8000;box-shadow:0 4px 12px rgba(0,0,0,0.2);pointer-events:none;transition:opacity 0.5s;';
+  hint.textContent='💡 아이콘을 더블클릭하면 창이 열려요!';
+  document.body.appendChild(hint);
+  setTimeout(()=>{hint.style.opacity='0';setTimeout(()=>hint.remove(),600);},3500);
+},800);
+</script>
+</body>
+</html>
