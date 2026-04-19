@@ -558,6 +558,183 @@ input[type=range]{flex:1;accent-color:var(--sky);}
 }
 .lb-close:hover{background:rgba(255,255,255,0.3);}
 </style>
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, addDoc, getDocs, deleteDoc, updateDoc, onSnapshot, orderBy, query, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAnXOuX911IW4vfgMM05fGhytLFxBT_hM8",
+  authDomain: "myweb02-df2eb.firebaseapp.com",
+  projectId: "myweb02-df2eb",
+  storageBucket: "myweb02-df2eb.firebasestorage.app",
+  messagingSenderId: "222683821068",
+  appId: "1:222683821068:web:2ca9f45c21deb8d5e26a29"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// Cloudinary 설정
+const CLOUDINARY_CLOUD = 'gangche';
+const CLOUDINARY_PRESET = 'gangche';
+
+// ── Cloudinary 이미지 업로드 함수 ──
+window.uploadToCloudinary = async function(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_PRESET);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+    method: 'POST', body: formData
+  });
+  const data = await res.json();
+  return data.secure_url;
+};
+
+// ════════════════════════════════
+// GALLERY POSTS — Firebase 연동
+// ════════════════════════════════
+window.fbSaveGalleryPost = async function(post) {
+  await addDoc(collection(db, 'galleryPosts'), post);
+};
+window.fbLoadGalleryPosts = async function() {
+  const q = query(collection(db, 'galleryPosts'), orderBy('date', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({fbId: d.id, ...d.data()}));
+};
+window.fbDeleteGalleryPost = async function(fbId) {
+  await deleteDoc(doc(db, 'galleryPosts', fbId));
+};
+
+// ════════════════════════════════
+// NOTES (일기) — Firebase 연동
+// ════════════════════════════════
+window.fbSaveNote = async function(note) {
+  if(note.fbId) {
+    await updateDoc(doc(db, 'notes', note.fbId), {title:note.title, body:note.body, date:note.date});
+  } else {
+    const ref = await addDoc(collection(db, 'notes'), {title:note.title, body:note.body, date:note.date});
+    return ref.id;
+  }
+};
+window.fbLoadNotes = async function() {
+  const q = query(collection(db, 'notes'), orderBy('date', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({fbId: d.id, ...d.data()}));
+};
+window.fbDeleteNote = async function(fbId) {
+  await deleteDoc(doc(db, 'notes', fbId));
+};
+
+// ════════════════════════════════
+// BOARD POSTS — Firebase 연동
+// ════════════════════════════════
+window.fbSaveBoardPost = async function(post) {
+  if(post.fbId) {
+    await updateDoc(doc(db, 'boardPosts', post.fbId), {title:post.title, content:post.content, views:post.views});
+  } else {
+    const ref = await addDoc(collection(db, 'boardPosts'), {title:post.title, author:post.author, date:post.date, content:post.content, views:0});
+    return ref.id;
+  }
+};
+window.fbLoadBoardPosts = async function() {
+  const q = query(collection(db, 'boardPosts'), orderBy('date', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({fbId: d.id, ...d.data()}));
+};
+window.fbDeleteBoardPost = async function(fbId) {
+  await deleteDoc(doc(db, 'boardPosts', fbId));
+};
+
+// ════════════════════════════════
+// CHAT MESSAGES — Firebase 실시간
+// ════════════════════════════════
+window.fbSendChatMsg = async function(msg) {
+  await addDoc(collection(db, 'chatMessages'), msg);
+};
+window.fbDeleteChatMsg = async function(fbId) {
+  await deleteDoc(doc(db, 'chatMessages', fbId));
+};
+window.fbListenChat = function(callback) {
+  const q = query(collection(db, 'chatMessages'), orderBy('timestamp'));
+  return onSnapshot(q, snap => {
+    const msgs = snap.docs.map(d => ({fbId: d.id, ...d.data()}));
+    callback(msgs);
+  });
+};
+
+// ════════════════════════════════
+// YOUTUBE TRACKS — Firebase 연동
+// ════════════════════════════════
+window.fbSaveYTTrack = async function(track) {
+  await addDoc(collection(db, 'ytTracks'), track);
+};
+window.fbLoadYTTracks = async function() {
+  const snap = await getDocs(collection(db, 'ytTracks'));
+  return snap.docs.map(d => ({fbId: d.id, ...d.data()}));
+};
+window.fbDeleteYTTrack = async function(fbId) {
+  await deleteDoc(doc(db, 'ytTracks', fbId));
+};
+
+// ════════════════════════════════
+// PROFILE — Firebase 연동
+// ════════════════════════════════
+window.fbSaveProfile = async function(data) {
+  await setDoc(doc(db, 'settings', 'profile'), data);
+};
+window.fbLoadProfile = async function() {
+  const snap = await getDoc(doc(db, 'settings', 'profile'));
+  return snap.exists() ? snap.data() : null;
+};
+
+// ── 앱 초기화: Firebase에서 데이터 로드 ──
+window.addEventListener('DOMContentLoaded', async () => {
+  // 갤러리 게시글
+  try {
+    const posts = await window.fbLoadGalleryPosts();
+    if(posts.length) window.galleryPosts.splice(0, window.galleryPosts.length, ...posts);
+  } catch(e) { console.log('gallery load:', e); }
+
+  // 일기
+  try {
+    const notes = await window.fbLoadNotes();
+    if(notes.length) window.notesData.splice(0, window.notesData.length, ...notes);
+  } catch(e) { console.log('notes load:', e); }
+
+  // 게시판
+  try {
+    const bposts = await window.fbLoadBoardPosts();
+    if(bposts.length) window.boardPosts.splice(0, window.boardPosts.length, ...bposts);
+  } catch(e) { console.log('board load:', e); }
+
+  // 유튜브 트랙
+  try {
+    const tracks = await window.fbLoadYTTracks();
+    if(tracks.length) window.ytTracks.splice(0, window.ytTracks.length, ...tracks);
+  } catch(e) { console.log('yt load:', e); }
+
+  // 프로필
+  try {
+    const prof = await window.fbLoadProfile();
+    if(prof) Object.assign(window.profileData, prof);
+  } catch(e) { console.log('profile load:', e); }
+
+  // 채팅 실시간 리스닝
+  window.fbListenChat(msgs => {
+    const room = window.chatRooms.find(r => r.id === 'general');
+    if(room) {
+      room.messages = msgs.map(m => ({
+        from: m.from, name: m.name, text: m.text, time: m.time, fbId: m.fbId
+      }));
+      const cm = document.getElementById('chat-messages');
+      if(cm) { cm.innerHTML = window.renderMessages(); window.scrollChat(); }
+    }
+  });
+
+  console.log('✅ Firebase 연결 완료!');
+});
+</script>
 </head>
 <body>
 
@@ -1098,7 +1275,7 @@ function renderGalleryItems(){
 }
 
 /* ── Gallery Posts ── */
-const galleryPosts=[];
+const galleryPosts=[]; window.galleryPosts=galleryPosts;
 let galleryAdminUnlocked=false;
 let galleryView2='list'; // 'list'|'post'
 
@@ -1251,9 +1428,31 @@ function saveGalleryPost(){
   const body=(document.getElementById('gp-body')?.value||'').trim();
   const now=new Date();
   const date=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
-  galleryPosts.unshift({id:Date.now(),title,body,thumb:galleryThumbData,img:galleryImgData,date});
-  galleryThumbData='';galleryImgData='';
-  hideGalleryEditor();
+  const btn=document.querySelector('[onclick="saveGalleryPost()"]');
+  if(btn){btn.textContent='저장 중...';btn.disabled=true;}
+
+  // 이미지 파일들을 Cloudinary에 업로드
+  const thumbFile=document.getElementById('gp-thumb-file')?.files?.[0];
+  const imgFile=document.getElementById('gp-img-file')?.files?.[0];
+
+  Promise.all([
+    thumbFile && window.uploadToCloudinary ? window.uploadToCloudinary(thumbFile) : Promise.resolve(galleryThumbData),
+    imgFile && window.uploadToCloudinary ? window.uploadToCloudinary(imgFile) : Promise.resolve(galleryImgData),
+  ]).then(async ([thumbUrl, imgUrl])=>{
+    const post={id:Date.now(),title,body,thumb:thumbUrl||'',img:imgUrl||'',date};
+    // Firebase에 저장
+    if(window.fbSaveGalleryPost){
+      try{ const fbId=await window.fbSaveGalleryPost(post); post.fbId=fbId; }
+      catch(e){ console.log('fb gallery save err',e); }
+    }
+    galleryPosts.unshift(post);
+    galleryThumbData='';galleryImgData='';
+    hideGalleryEditor();
+  }).catch(e=>{
+    console.error(e);
+    if(btn){btn.textContent='💾 게시하기';btn.disabled=false;}
+    alert('저장 중 오류가 발생했어요. 다시 시도해주세요.');
+  });
 }
 
 function hideGalleryEditor(){
@@ -1436,8 +1635,12 @@ function addYTTrack(){
   if(!idEl||!nameEl)return;
   const id=idEl.value.trim();
   const name=nameEl.value.trim()||'사용자 추가 곡';
-  if(!id){alert('유튜브 영상 ID를 입력해주세요!\n예) https://youtube.com/watch?v= 뒤의 코드');return;}
-  ytTracks.push({id,title:name,artist:'직접 추가'});
+  if(!id){alert('유튜브 영상 ID를 입력해주세요!');return;}
+  const track={id,title:name,artist:'직접 추가'};
+  if(window.fbSaveYTTrack){
+    window.fbSaveYTTrack(track).catch(e=>console.log('yt save err',e));
+  }
+  ytTracks.push(track);
   idEl.value='';nameEl.value='';
   buildPL();
   playYT(ytTracks.length-1);
@@ -1562,6 +1765,10 @@ function boardGoBack(){
 
 function deleteBoardPost(id){
   if(!confirm('이 게시글을 삭제할까요?'))return;
+  const post=boardPosts.find(p=>p.id===id);
+  if(post?.fbId && window.fbDeleteBoardPost){
+    window.fbDeleteBoardPost(post.fbId).catch(e=>console.log('board del err',e));
+  }
   const idx=boardPosts.findIndex(p=>p.id===id);
   if(idx>-1)boardPosts.splice(idx,1);
   boardGoBack();
@@ -1597,7 +1804,13 @@ function boardNewPost(){
 function saveBoardPost(id,date){
   const title=document.getElementById('board-new-title')?.value.trim()||'제목 없음';
   const body=document.getElementById('board-new-body')?.value.trim()||'';
-  boardPosts.unshift({id,title,author:'관리자',date,views:0,content:body});
+  const post={id,title,author:'관리자',date,views:0,content:body};
+  if(window.fbSaveBoardPost){
+    window.fbSaveBoardPost(post).then(fbId=>{
+      if(fbId) post.fbId=fbId;
+    }).catch(e=>console.log('board save err',e));
+  }
+  boardPosts.unshift(post);
   boardGoBack();
 }
 
@@ -1699,7 +1912,10 @@ function saveCurrentNote(){
   const bi=document.getElementById('note-body-input');
   if(ti)note.title=ti.value;
   if(bi)note.body=bi.innerText;
-  // refresh list
+  // Firebase 저장
+  if(window.fbSaveNote){
+    window.fbSaveNote(note).catch(e=>console.log('note save err',e));
+  }
   const dl=document.getElementById('diary-list');
   if(dl)dl.innerHTML=renderDiaryList();
   setStatus('notes','저장됨 ✓');
@@ -1709,6 +1925,11 @@ function saveCurrentNote(){
 function deleteCurrentNote(){
   if(!currentNoteId)return;
   if(!confirm('이 일기를 삭제할까요?'))return;
+  const note=notesData.find(n=>n.id===currentNoteId);
+  // Firebase 삭제
+  if(note?.fbId && window.fbDeleteNote){
+    window.fbDeleteNote(note.fbId).catch(e=>console.log('note del err',e));
+  }
   const idx=notesData.findIndex(n=>n.id===currentNoteId);
   if(idx>-1)notesData.splice(idx,1);
   const dl=document.getElementById('diary-list');
@@ -1720,11 +1941,27 @@ function newNote(){
   const id=Date.now();
   const now=new Date();
   const date=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
-  notesData.unshift({id,title:'새 일기',date,body:''});
+  const note={id,title:'새 일기',date,body:''};
+  // Firebase에 새 노트 저장
+  if(window.fbSaveNote){
+    window.fbSaveNote(note).then(fbId=>{
+      if(fbId) note.fbId=fbId;
+    }).catch(e=>console.log('new note err',e));
+  }
+  notesData.unshift(note);
   const dl=document.getElementById('diary-list');
   if(dl)dl.innerHTML=renderDiaryList();
   openNote(id);
 }
+
+/* ── window 전역 노출 (Firebase 모듈 연동용) ── */
+window.notesData=notesData;
+window.boardPosts=boardPosts;
+window.ytTracks=ytTracks;
+window.chatRooms=chatRooms;
+window.profileData=profileData;
+window.renderMessages=renderMessages;
+window.scrollChat=scrollChat;
 
 /* ── Profile data (edit 가능) ── */
 const profileData = {
@@ -1967,8 +2204,22 @@ function saveProfileEdit(){
   profileData.subtitle = g('edit-subtitle') || profileData.subtitle;
   profileData.bio      = g('edit-bio') || profileData.bio;
   profileData.stats.forEach((s,i)=>{ const v=g(`edit-stat-${i}`); if(v) s.num=v; });
+  // Firebase에 프로필 저장
+  if(window.fbSaveProfile){
+    window.fbSaveProfile({
+      avatar: profileData.avatar,
+      name: profileData.name,
+      subtitle: profileData.subtitle,
+      bio: profileData.bio,
+      stats: profileData.stats,
+      keywords: profileData.keywords,
+      imgUrl: profileData.imgUrl,
+    }).catch(e=>console.log('profile save err',e));
+  }
   const view = document.getElementById('about-view');
   if(view) view.innerHTML = renderProfileView();
+  setStatus('about','프로필 저장됨 ✓');
+  setTimeout(()=>setStatus('about',''),1500);
 }
 
 function cancelProfileEdit(){
@@ -2159,8 +2410,17 @@ function refreshChatMessages(){
 
 function deleteChatMsg(roomId, idx){
   const room=chatRooms.find(r=>r.id===roomId);
-  if(room) room.messages.splice(idx,1);
-  refreshChatMessages();
+  if(!room) return;
+  const msg=room.messages[idx];
+  // Firebase에서 삭제
+  if(msg?.fbId && window.fbDeleteChatMsg){
+    window.fbDeleteChatMsg(msg.fbId).catch(e=>console.log('chat del err',e));
+  } else {
+    // Firebase 없으면 로컬만 삭제
+    room.messages.splice(idx,1);
+    refreshChatMessages();
+  }
+  // 실시간 리스너가 자동으로 UI 업데이트함
 }
 
 function renderMessages(){
@@ -2233,65 +2493,24 @@ function sendMsg(){
   input.value='';
   const now=new Date();
   const time=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-  const room=chatRooms.find(r=>r.id===currentRoom);
-  room.messages.push({from:'me',name:nick,text,time});
-  const cm=document.getElementById('chat-messages');
-  if(!cm)return;
-  // append my bubble
-  const myDiv=document.createElement('div');
-  myDiv.className='msg-row me';
-  myDiv.innerHTML=`<div class="msg-col">
-    <div class="msg-bubble">${text}</div>
-    <div class="msg-time">${time}</div>
-  </div>`;
-  cm.appendChild(myDiv);
-  scrollChat();
-  // typing indicator + bot reply
-  setTimeout(()=>{
-    const typing=document.createElement('div');
-    typing.className='msg-row';
-    const bot=getBotInfo(currentRoom);
-    typing.innerHTML=`<div class="msg-avatar" style="background:linear-gradient(135deg,#a8d8f8,#5bb8f5)">${bot.avatar}</div>
-      <div class="msg-col"><div class="typing-bubble">
-        <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
-      </div></div>`;
-    typing.id='typing-indicator';
-    cm.appendChild(typing);scrollChat();
-    setTimeout(()=>{
-      typing.remove();
-      const replies=chatBotReplies[currentRoom]||chatBotReplies.general;
-      const reply=replies[Math.floor(Math.random()*replies.length)];
-      const replyTime=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-      room.messages.push({from:'other',name:bot.name,avatar:bot.avatar,text:reply,time:replyTime});
-      const rd=document.createElement('div');
-      rd.className='msg-row';
-      rd.innerHTML=`<div class="msg-avatar" style="background:linear-gradient(135deg,#a8d8f8,#5bb8f5)">${bot.avatar}</div>
-        <div class="msg-col">
-          <div class="msg-name">${bot.name}</div>
-          <div class="msg-bubble">${reply}</div>
-          <div class="msg-time">${replyTime}</div>
-        </div>`;
-      cm.appendChild(rd);scrollChat();
-    },1200+Math.random()*800);
-  },600+Math.random()*400);
-}
+  const msg={from:'visitor',name:nick,text,time,timestamp:Date.now()};
 
-function getBotInfo(roomId){
-  const bots={
-    general:{name:'하늘',avatar:'🌸'},
-    photo:{name:'달빛',avatar:'🌙'},
-    music:{name:'파도',avatar:'🌊'},
-  };
-  return bots[roomId]||{name:'친구',avatar:'😊'};
+  // Firebase에 저장 (실시간 리스너가 자동으로 UI 업데이트)
+  if(window.fbSendChatMsg){
+    window.fbSendChatMsg(msg).catch(e=>{
+      console.log('chat send err',e);
+      // Firebase 실패시 로컬에라도 표시
+      const room=chatRooms.find(r=>r.id===currentRoom);
+      if(room) room.messages.push({...msg,from:'me'});
+      refreshChatMessages();
+    });
+  } else {
+    // Firebase 없을 때 로컬 fallback
+    const room=chatRooms.find(r=>r.id===currentRoom);
+    if(room) room.messages.push({...msg,from:'me'});
+    refreshChatMessages();
+  }
 }
-
-const emojis=['😊','😍','🥰','✨','🌸','📷','🎵','💙','🌿','🌙','⭐','💬'];
-let emojiIdx=0;
-function insertEmoji(){
-  const input=document.getElementById('chat-input');
-  if(input){input.value+=emojis[emojiIdx%emojis.length];emojiIdx++;input.focus();}
-}
-
 
 /* ─── Admin Panel ─── */
 let adminUnlocked = false;
