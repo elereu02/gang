@@ -559,181 +559,187 @@ input[type=range]{flex:1;accent-color:var(--sky);}
 .lb-close:hover{background:rgba(255,255,255,0.3);}
 </style>
 <!-- Firebase SDK -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, doc, addDoc, getDocs, deleteDoc, updateDoc, onSnapshot, orderBy, query, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<!-- Firebase Compat SDK (전역 스크립트 방식) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+(function(){
+  const firebaseConfig = {
+    apiKey: "AIzaSyAnXOuX911IW4vfgMM05fGhytLFxBT_hM8",
+    authDomain: "myweb02-df2eb.firebaseapp.com",
+    projectId: "myweb02-df2eb",
+    storageBucket: "myweb02-df2eb.firebasestorage.app",
+    messagingSenderId: "222683821068",
+    appId: "1:222683821068:web:2ca9f45c21deb8d5e26a29"
+  };
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAnXOuX911IW4vfgMM05fGhytLFxBT_hM8",
-  authDomain: "myweb02-df2eb.firebaseapp.com",
-  projectId: "myweb02-df2eb",
-  storageBucket: "myweb02-df2eb.firebasestorage.app",
-  messagingSenderId: "222683821068",
-  appId: "1:222683821068:web:2ca9f45c21deb8d5e26a29"
-};
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+  const CLOUDINARY_CLOUD = 'gangche';
+  const CLOUDINARY_PRESET = 'gangche';
 
-// Cloudinary 설정
-const CLOUDINARY_CLOUD = 'gangche';
-const CLOUDINARY_PRESET = 'gangche';
+  // ── Cloudinary 이미지 업로드 ──
+  window.uploadToCloudinary = async function(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_PRESET);
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`,
+      {method:'POST', body:formData}
+    );
+    const data = await res.json();
+    if(data.secure_url) return data.secure_url;
+    throw new Error(data.error?.message || 'Cloudinary 업로드 실패');
+  };
 
-// ── Cloudinary 이미지 업로드 함수 ──
-window.uploadToCloudinary = async function(file) {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', CLOUDINARY_PRESET);
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
-    method: 'POST', body: formData
-  });
-  const data = await res.json();
-  return data.secure_url;
-};
-
-// ════════════════════════════════
-// GALLERY POSTS — Firebase 연동
-// ════════════════════════════════
-window.fbSaveGalleryPost = async function(post) {
-  await addDoc(collection(db, 'galleryPosts'), post);
-};
-window.fbLoadGalleryPosts = async function() {
-  const q = query(collection(db, 'galleryPosts'), orderBy('date', 'desc'));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({fbId: d.id, ...d.data()}));
-};
-window.fbDeleteGalleryPost = async function(fbId) {
-  await deleteDoc(doc(db, 'galleryPosts', fbId));
-};
-
-// ════════════════════════════════
-// NOTES (일기) — Firebase 연동
-// ════════════════════════════════
-window.fbSaveNote = async function(note) {
-  if(note.fbId) {
-    await updateDoc(doc(db, 'notes', note.fbId), {title:note.title, body:note.body, date:note.date});
-  } else {
-    const ref = await addDoc(collection(db, 'notes'), {title:note.title, body:note.body, date:note.date});
+  // ── Gallery Posts ──
+  window.fbSaveGalleryPost = async function(post) {
+    const ref = await db.collection('galleryPosts').add(post);
     return ref.id;
-  }
-};
-window.fbLoadNotes = async function() {
-  const q = query(collection(db, 'notes'), orderBy('date', 'desc'));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({fbId: d.id, ...d.data()}));
-};
-window.fbDeleteNote = async function(fbId) {
-  await deleteDoc(doc(db, 'notes', fbId));
-};
+  };
+  window.fbLoadGalleryPosts = async function() {
+    const snap = await db.collection('galleryPosts').orderBy('date','desc').get();
+    return snap.docs.map(d=>({fbId:d.id,...d.data()}));
+  };
+  window.fbDeleteGalleryPost = async function(fbId) {
+    await db.collection('galleryPosts').doc(fbId).delete();
+  };
 
-// ════════════════════════════════
-// BOARD POSTS — Firebase 연동
-// ════════════════════════════════
-window.fbSaveBoardPost = async function(post) {
-  if(post.fbId) {
-    await updateDoc(doc(db, 'boardPosts', post.fbId), {title:post.title, content:post.content, views:post.views});
-  } else {
-    const ref = await addDoc(collection(db, 'boardPosts'), {title:post.title, author:post.author, date:post.date, content:post.content, views:0});
-    return ref.id;
-  }
-};
-window.fbLoadBoardPosts = async function() {
-  const q = query(collection(db, 'boardPosts'), orderBy('date', 'desc'));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({fbId: d.id, ...d.data()}));
-};
-window.fbDeleteBoardPost = async function(fbId) {
-  await deleteDoc(doc(db, 'boardPosts', fbId));
-};
-
-// ════════════════════════════════
-// CHAT MESSAGES — Firebase 실시간
-// ════════════════════════════════
-window.fbSendChatMsg = async function(msg) {
-  await addDoc(collection(db, 'chatMessages'), msg);
-};
-window.fbDeleteChatMsg = async function(fbId) {
-  await deleteDoc(doc(db, 'chatMessages', fbId));
-};
-window.fbListenChat = function(callback) {
-  const q = query(collection(db, 'chatMessages'), orderBy('timestamp'));
-  return onSnapshot(q, snap => {
-    const msgs = snap.docs.map(d => ({fbId: d.id, ...d.data()}));
-    callback(msgs);
-  });
-};
-
-// ════════════════════════════════
-// YOUTUBE TRACKS — Firebase 연동
-// ════════════════════════════════
-window.fbSaveYTTrack = async function(track) {
-  await addDoc(collection(db, 'ytTracks'), track);
-};
-window.fbLoadYTTracks = async function() {
-  const snap = await getDocs(collection(db, 'ytTracks'));
-  return snap.docs.map(d => ({fbId: d.id, ...d.data()}));
-};
-window.fbDeleteYTTrack = async function(fbId) {
-  await deleteDoc(doc(db, 'ytTracks', fbId));
-};
-
-// ════════════════════════════════
-// PROFILE — Firebase 연동
-// ════════════════════════════════
-window.fbSaveProfile = async function(data) {
-  await setDoc(doc(db, 'settings', 'profile'), data);
-};
-window.fbLoadProfile = async function() {
-  const snap = await getDoc(doc(db, 'settings', 'profile'));
-  return snap.exists() ? snap.data() : null;
-};
-
-// ── 앱 초기화: Firebase에서 데이터 로드 ──
-window.addEventListener('DOMContentLoaded', async () => {
-  // 갤러리 게시글
-  try {
-    const posts = await window.fbLoadGalleryPosts();
-    if(posts.length) window.galleryPosts.splice(0, window.galleryPosts.length, ...posts);
-  } catch(e) { console.log('gallery load:', e); }
-
-  // 일기
-  try {
-    const notes = await window.fbLoadNotes();
-    if(notes.length) window.notesData.splice(0, window.notesData.length, ...notes);
-  } catch(e) { console.log('notes load:', e); }
-
-  // 게시판
-  try {
-    const bposts = await window.fbLoadBoardPosts();
-    if(bposts.length) window.boardPosts.splice(0, window.boardPosts.length, ...bposts);
-  } catch(e) { console.log('board load:', e); }
-
-  // 유튜브 트랙
-  try {
-    const tracks = await window.fbLoadYTTracks();
-    if(tracks.length) window.ytTracks.splice(0, window.ytTracks.length, ...tracks);
-  } catch(e) { console.log('yt load:', e); }
-
-  // 프로필
-  try {
-    const prof = await window.fbLoadProfile();
-    if(prof) Object.assign(window.profileData, prof);
-  } catch(e) { console.log('profile load:', e); }
-
-  // 채팅 실시간 리스닝
-  window.fbListenChat(msgs => {
-    const room = window.chatRooms.find(r => r.id === 'general');
-    if(room) {
-      room.messages = msgs.map(m => ({
-        from: m.from, name: m.name, text: m.text, time: m.time, fbId: m.fbId
-      }));
-      const cm = document.getElementById('chat-messages');
-      if(cm) { cm.innerHTML = window.renderMessages(); window.scrollChat(); }
+  // ── Notes ──
+  window.fbSaveNote = async function(note) {
+    if(note.fbId){
+      await db.collection('notes').doc(note.fbId).update({title:note.title,body:note.body,date:note.date});
+      return note.fbId;
+    } else {
+      const ref = await db.collection('notes').add({title:note.title,body:note.body,date:note.date,id:note.id});
+      return ref.id;
     }
-  });
+  };
+  window.fbLoadNotes = async function() {
+    const snap = await db.collection('notes').orderBy('date','desc').get();
+    return snap.docs.map(d=>({fbId:d.id,...d.data()}));
+  };
+  window.fbDeleteNote = async function(fbId) {
+    await db.collection('notes').doc(fbId).delete();
+  };
 
-  console.log('✅ Firebase 연결 완료!');
-});
+  // ── Board Posts ──
+  window.fbSaveBoardPost = async function(post) {
+    if(post.fbId){
+      await db.collection('boardPosts').doc(post.fbId).update({title:post.title,content:post.content,views:post.views||0});
+      return post.fbId;
+    } else {
+      const ref = await db.collection('boardPosts').add({title:post.title,author:post.author,date:post.date,content:post.content,views:0,id:post.id});
+      return ref.id;
+    }
+  };
+  window.fbLoadBoardPosts = async function() {
+    const snap = await db.collection('boardPosts').orderBy('date','desc').get();
+    return snap.docs.map(d=>({fbId:d.id,...d.data()}));
+  };
+  window.fbDeleteBoardPost = async function(fbId) {
+    await db.collection('boardPosts').doc(fbId).delete();
+  };
+
+  // ── Chat Messages (실시간) ──
+  window.fbSendChatMsg = async function(msg) {
+    await db.collection('chatMessages').add(msg);
+  };
+  window.fbDeleteChatMsg = async function(fbId) {
+    await db.collection('chatMessages').doc(fbId).delete();
+  };
+  window.fbListenChat = function(callback) {
+    return db.collection('chatMessages').orderBy('timestamp').onSnapshot(snap=>{
+      const msgs = snap.docs.map(d=>({fbId:d.id,...d.data()}));
+      callback(msgs);
+    });
+  };
+
+  // ── YouTube Tracks ──
+  window.fbSaveYTTrack = async function(track) {
+    await db.collection('ytTracks').add(track);
+  };
+  window.fbLoadYTTracks = async function() {
+    const snap = await db.collection('ytTracks').get();
+    return snap.docs.map(d=>({fbId:d.id,...d.data()}));
+  };
+  window.fbDeleteYTTrack = async function(fbId) {
+    await db.collection('ytTracks').doc(fbId).delete();
+  };
+
+  // ── Profile ──
+  window.fbSaveProfile = async function(data) {
+    await db.collection('settings').doc('profile').set(data);
+  };
+  window.fbLoadProfile = async function() {
+    const snap = await db.collection('settings').doc('profile').get();
+    return snap.exists ? snap.data() : null;
+  };
+
+  // ── 앱 초기화: 페이지 로드시 Firebase 데이터 불러오기 ──
+  window.addEventListener('load', async () => {
+    try {
+      // 갤러리 게시글
+      const posts = await window.fbLoadGalleryPosts();
+      if(posts.length && window.galleryPosts){
+        window.galleryPosts.splice(0, window.galleryPosts.length, ...posts);
+      }
+    } catch(e){ console.log('gallery load:', e); }
+
+    try {
+      // 일기
+      const notes = await window.fbLoadNotes();
+      if(notes.length && window.notesData){
+        window.notesData.splice(0, window.notesData.length, ...notes);
+      }
+    } catch(e){ console.log('notes load:', e); }
+
+    try {
+      // 게시판
+      const bposts = await window.fbLoadBoardPosts();
+      if(bposts.length && window.boardPosts){
+        window.boardPosts.splice(0, window.boardPosts.length, ...bposts);
+      }
+    } catch(e){ console.log('board load:', e); }
+
+    try {
+      // 유튜브 트랙
+      const tracks = await window.fbLoadYTTracks();
+      if(tracks.length && window.ytTracks){
+        window.ytTracks.splice(0, window.ytTracks.length, ...tracks);
+      }
+    } catch(e){ console.log('yt load:', e); }
+
+    try {
+      // 프로필
+      const prof = await window.fbLoadProfile();
+      if(prof && window.profileData){
+        Object.assign(window.profileData, prof);
+      }
+    } catch(e){ console.log('profile load:', e); }
+
+    // 채팅 실시간 리스닝
+    try {
+      window.fbListenChat(msgs => {
+        const room = window.chatRooms && window.chatRooms.find(r=>r.id==='general');
+        if(room){
+          room.messages = msgs.map(m=>({
+            from: m.from||'visitor', name: m.name||'익명',
+            text: m.text, time: m.time, fbId: m.fbId
+          }));
+          const cm = document.getElementById('chat-messages');
+          if(cm && window.renderMessages){
+            cm.innerHTML = window.renderMessages();
+            if(window.scrollChat) window.scrollChat();
+          }
+        }
+      });
+    } catch(e){ console.log('chat listen:', e); }
+
+    console.log('✅ Firebase 연결 완료!');
+  });
+})();
 </script>
 </head>
 <body>
@@ -1060,11 +1066,11 @@ document.getElementById('desktop').addEventListener('click',e=>{
 });
 
 /* ─── Window manager ─── */
-let zTop=100;
-const wins={};
-const taskbarBtns={};
+var zTop=100;
+var wins={};
+var taskbarBtns={};
 
-const winConfigs={
+var winConfigs={
   gallery:{title:'🖼  그림',w:580,h:480,url:'blog://gallery'},
   upload:{title:'📤  이미지 올리기',w:480,h:400,url:'blog://upload'},
   music:{title:'🎵  음악',w:380,h:520,url:'blog://music'},
@@ -1157,7 +1163,7 @@ function minimizeWin(id){
   taskbarBtns[id]?.classList.remove('active');
 }
 
-let maxedWin={};
+var maxedWin={};
 function maximizeWin(id){
   const w=wins[id];
   if(maxedWin[id]){
@@ -1205,7 +1211,7 @@ function makeResizable(win,handle){
 }
 
 /* ─── Content builders ─── */
-const sampleImages=[
+var sampleImages=[
   {ph:'linear-gradient(135deg,#74c0fc,#1971c2)',name:'하늘 풍경.jpg',date:'2025.04.12',size:'2.4 MB'},
   {ph:'linear-gradient(135deg,#f093fb,#c44ddb)',name:'라벤더 밭.jpg',date:'2025.03.28',size:'1.8 MB'},
   {ph:'linear-gradient(135deg,#69db7c,#2f9e44)',name:'봄 산책.jpg',date:'2025.03.10',size:'3.1 MB'},
@@ -1216,8 +1222,8 @@ const sampleImages=[
   {ph:'linear-gradient(135deg,#adb5bd,#495057)',name:'겨울 눈.jpg',date:'2024.10.30',size:'1.9 MB'},
 ];
 
-let uploadedList=[];
-let galleryView='grid';
+var uploadedList=[];
+var galleryView='grid';
 
 function buildContent(id){
   if(id==='gallery')return buildGallery();
@@ -1275,9 +1281,9 @@ function renderGalleryItems(){
 }
 
 /* ── Gallery Posts ── */
-const galleryPosts=[]; window.galleryPosts=galleryPosts;
-let galleryAdminUnlocked=false;
-let galleryView2='list'; // 'list'|'post'
+var galleryPosts=[]; window.galleryPosts=galleryPosts;
+var galleryAdminUnlocked=false;
+var galleryView2='list'; // 'list'|'post'
 
 function openGalleryPost(){
   if(!galleryAdminUnlocked){ openGalleryAdminPW(); return; }
@@ -1325,8 +1331,8 @@ function checkGalleryAdminPW(){
   }
 }
 
-let galleryThumbData='';
-let galleryImgData='';
+var galleryThumbData='';
+var galleryImgData='';
 
 function showGalleryEditor(){
   const wc=document.getElementById('gallery-win-content');
@@ -1548,7 +1554,7 @@ function toggleMusicAdmin(){
     if(p) p.style.display = p.style.display==='none' ? 'block' : 'none';
   }
 }
-let musicAdminUnlocked = false;
+var musicAdminUnlocked = false;
 function openMusicAdminPW(){
   const modal = document.createElement('div');
   modal.id = 'map-modal';
@@ -1591,13 +1597,13 @@ function checkMusicAdminPW(){
 }
 
 /* ── YouTube playlist ── */
-const ytTracks=[
+var ytTracks=[
   {id:'jfKfPfyJRdk',title:'lofi hip hop radio',artist:'Lofi Girl · 작업용'},
   {id:'5qap5aO4i9A',title:'lofi hip hop - beats to relax',artist:'Lofi Girl · 휴식용'},
   {id:'DWcJFNfaw9c',title:'chillhop music - jazz',artist:'Chillhop Music'},
   {id:'kgx4WGK0oNU',title:'peaceful piano · study music',artist:'Soothing Relaxation'},
 ];
-let curYT=null;
+var curYT=null;
 
 function initPlayer(){
   buildPL();
@@ -1648,14 +1654,14 @@ function addYTTrack(){
 
 /* ── Board (admin only) ── */
 const ADMIN_PW='1234'; // ← 여기서 비밀번호 변경!
-let boardUnlocked=false;
+var boardUnlocked=false;
 
-const boardPosts=[
+var boardPosts=[
   {id:1,title:'블로그 오픈했어요! 🎉',author:'관리자',date:'2025.04.10',views:42,content:'안녕하세요, 드디어 블로그를 오픈했어요!\n앞으로 사진이랑 일상을 열심히 올릴게요. 많이 놀러와 주세요 🌸'},
   {id:2,title:'4월 사진 업로드 완료',author:'관리자',date:'2025.04.12',views:28,content:'봄 풍경 사진들을 업로드했습니다.\n그림 탭에서 확인해보세요! 📷'},
   {id:3,title:'방명록 남겨주세요',author:'관리자',date:'2025.04.13',views:35,content:'방문해주셔서 감사합니다!\n방명록에 흔적 남겨주시면 너무 좋아요 💙'},
 ];
-let boardView=null; // null=list, number=post id
+var boardView=null; // null=list, number=post id
 
 function openTrashBoard(){
   if(boardUnlocked){openWin('trash');return;}
@@ -1848,14 +1854,14 @@ function buildNotes(){
 }
 
 /* ── Diary data & helpers ── */
-const notesData=[
+var notesData=[
   {id:1,title:'봄비 내리던 날',date:'2025.04.12',body:'오늘은 카메라 하나 들고 빗속으로 나갔다.\n\n젖은 아스팔트 위로 가로등 빛이 번지는 걸 담고 싶었다. 한 장, 한 장 셔터를 누를 때마다 빗소리가 더 크게 들렸다.\n\n이런 날엔 필름 카메라가 더 어울렸을 텐데.'},
   {id:2,title:'새벽 3시의 필름 현상',date:'2025.03.28',body:'암실이 이렇게 명상적인 공간인지 처음 알았다.\n\n빛 한 점 없는 어둠 속에서 물약 냄새를 맡으며 이미지가 떠오르는 걸 기다리는 일. 디지털 보정 10분보다 이 기다림이 훨씬 진하다.'},
   {id:3,title:'도쿄, 어느 골목에서',date:'2025.02.14',body:'지도 없이 걷는 여행.\n\n골목이 골목을 이어받고, 작은 찻집 창문에 붙은 메뉴판이 눈에 들어왔다. 일본어를 못 읽어도 그 글씨체가 아름다웠다.\n\n사진은 언어보다 먼저 닿는다는 걸 다시 느꼈다.'},
   {id:4,title:'겨울 창가의 빛',date:'2025.01.03',body:'겨울 오후의 빛은 낮게 든다.\n\n창문을 통과한 사선의 빛이 마루 위에 길게 누울 때, 그 순간을 1/500로 잘라낸다. 같은 창문인데 계절마다 다른 얼굴이다.'},
   {id:5,title:'첫 번째 일기',date:'2024.12.01',body:'블로그를 시작하는 날.\n\n무엇을 써야 할지 몰라서 일단 이렇게 시작한다. 사진이든 글이든, 작은 것들을 기록하다 보면 언젠가는 쌓이겠지.'},
 ];
-let currentNoteId=null;
+var currentNoteId=null;
 
 function renderDiaryList(){
   return notesData.map(n=>{
@@ -1954,17 +1960,8 @@ function newNote(){
   openNote(id);
 }
 
-/* ── window 전역 노출 (Firebase 모듈 연동용) ── */
-window.notesData=notesData;
-window.boardPosts=boardPosts;
-window.ytTracks=ytTracks;
-window.chatRooms=chatRooms;
-window.profileData=profileData;
-window.renderMessages=renderMessages;
-window.scrollChat=scrollChat;
-
 /* ── Profile data (edit 가능) ── */
-const profileData = {
+var profileData = {
   avatar: '🐾',
   name: 'My Gallery Blog',
   subtitle: '✦ Visual Diary',
@@ -1973,7 +1970,7 @@ const profileData = {
   keywords: ['📷 Photography','🎵 Music','✈ Travel','🌿 Daily'],
   imgUrl: '',
 };
-let profileUnlocked = false;
+var profileUnlocked = false;
 
 function buildAbout(){
   return `<div style="display:flex;flex-direction:column;height:100%;position:relative;">
@@ -2293,7 +2290,7 @@ document.addEventListener('mousedown',e=>{
 });
 
 /* ─── Chat ─── */
-const chatRooms=[
+var chatRooms=[
   {id:'general',name:'방명록',dot:'#5bb8f5',messages:[
     {from:'other',name:'하늘',avatar:'🌸',text:'안녕하세요! 블로그 너무 예뻐요 😊',time:'10:20'},
     {from:'other',name:'하늘',avatar:'🌸',text:'사진들 어디서 찍으셨어요?',time:'10:21'},
@@ -2302,9 +2299,9 @@ const chatRooms=[
     {from:'me',text:'반가워요 ✨',time:'10:26'},
   ]},
 ];
-let currentRoom='general';
+var currentRoom='general';
 
-const chatBotReplies={
+var chatBotReplies={
   general:['멋지네요! 😍','저도 그렇게 생각해요!','오! 진짜요?? 👀','완전 공감이에요 ✨','ㅋㅋㅋ 맞아요!','대박이다..','사진 더 올려주세요! 📸','블로그 자주 올게요 🌸'],
   photo:['오 그런 방법이 있었군요!','필름값이 너무 올랐죠 😅','현상소 어디 가세요?','저도 배우고 싶어요!','셔터 속도가 핵심이죠 📷'],
   music:['저도 그 아티스트 좋아해요!','플레이리스트 공유 감사해요 🎵','요즘 계속 들어요!','새벽에 듣기 좋은 음악이에요','같이 음악 얘기해요 🎧'],
@@ -2344,8 +2341,8 @@ function buildChat(){
   </div>`;
 }
 
-let chatAdminUnlocked = false;
-let chatAdminMode = false;
+var chatAdminUnlocked = false;
+var chatAdminMode = false;
 
 function toggleChatAdmin(){
   if(chatAdminMode){
@@ -2513,10 +2510,10 @@ function sendMsg(){
 }
 
 /* ─── Admin Panel ─── */
-let adminUnlocked = false;
+var adminUnlocked = false;
 
 /* 테마 상태 */
-const themeState = {
+var themeState = {
   taskbarColor: 'rgba(120,195,250,0.92)',
   taskbarColor2: 'rgba(80,160,230,0.96)',
   winTitleColor: '#a8d8f8',
@@ -2755,7 +2752,7 @@ function resetIconImg(iconId){
 }
 
 /* ── THEME PRESETS ── */
-const THEMES = {
+var THEMES = {
   sky: {
     name:'하늘', isDark:false,
     taskbar1:'rgba(120,195,250,0.92)', taskbar2:'rgba(80,160,230,0.96)',
@@ -2871,6 +2868,16 @@ const THEMES = {
     chatBubbleMe1:'#3a5898', chatBubbleMe2:'#2a4880',
   },
 };
+
+/* ── window 전역 노출 ── */
+window.galleryPosts=galleryPosts;
+window.notesData=notesData;
+window.boardPosts=boardPosts;
+window.ytTracks=ytTracks;
+window.chatRooms=chatRooms;
+window.profileData=profileData;
+window.renderMessages=renderMessages;
+window.scrollChat=scrollChat;
 
 function applyThemePreset(key){
   const th = THEMES[key];
