@@ -734,6 +734,8 @@ input[type=range]{flex:1;accent-color:var(--sky);}
       // 일기
       const notes = await window.fbLoadNotes();
       if(notes.length && window.notesData){
+        // id 필드 보장 (Firebase 문서에 id가 없을 수 있음)
+        notes.forEach(n=>{ if(!n.id) n.id = n.fbId; });
         window.notesData.splice(0, window.notesData.length, ...notes);
       }
     } catch(e){ console.log('notes load:', e); }
@@ -2379,18 +2381,19 @@ var currentNoteId=null;
 
 function renderDiaryList(){
   return notesData.map(n=>{
-    const parts=n.date.split('.');
+    const parts=(n.date||'').split('.');
     const mon=parts[1]||'';const day=parts[2]||'';
-    const preview=n.body.replace(/\n/g,' ');
-    return `<div class="diary-item" onclick="openNote(${n.id})">
+    const preview=(n.body||'').replace(/\n/g,' ');
+    const noteKey=n.fbId||n.id; // Firebase 노트는 fbId로 식별
+    return `<div class="diary-item" onclick="openNote('${noteKey}')">
       <div class="diary-date-badge">
         <div class="day">${day}</div>
         <div class="mon">${mon}월</div>
       </div>
       <div class="diary-item-body">
-        <div class="diary-item-title">${n.title}</div>
+        <div class="diary-item-title">${n.title||''}</div>
         <div class="diary-item-preview">${preview}</div>
-        <div class="diary-item-meta">${n.date}</div>
+        <div class="diary-item-meta">${n.date||''}</div>
       </div>
       <div class="diary-item-arrow">›</div>
     </div>`;
@@ -2398,9 +2401,9 @@ function renderDiaryList(){
 }
 
 function openNote(id){
-  const note=notesData.find(n=>n.id===id);
+  const note=notesData.find(n=>String(n.fbId||n.id)===String(id));
   if(!note)return;
-  currentNoteId=id;
+  currentNoteId=String(note.fbId||note.id); // 항상 문자열로 통일
   const ti=document.getElementById('note-title-input');
   const bi=document.getElementById('note-body-input');
   const meta=document.getElementById('note-meta-row');
@@ -2426,7 +2429,7 @@ function notesGoBack(){
 
 function saveCurrentNote(){
   if(!currentNoteId)return;
-  const note=notesData.find(n=>n.id===currentNoteId);
+  const note=notesData.find(n=>String(n.fbId||n.id)===String(currentNoteId));
   if(!note)return;
   const ti=document.getElementById('note-title-input');
   const bi=document.getElementById('note-body-input');
@@ -2445,10 +2448,10 @@ function saveCurrentNote(){
 function deleteCurrentNote(){
   if(!currentNoteId)return;
   if(!confirm('휴지통으로 이동할까요?'))return;
-  const note=notesData.find(n=>n.id===currentNoteId);
+  const note=notesData.find(n=>String(n.fbId||n.id)===String(currentNoteId));
 
   // 로컬에서 먼저 제거
-  const idx=notesData.findIndex(n=>n.id===currentNoteId);
+  const idx=notesData.findIndex(n=>String(n.fbId||n.id)===String(currentNoteId));
   if(idx>-1)notesData.splice(idx,1);
   const dl=document.getElementById('diary-list');
   if(dl)dl.innerHTML=renderDiaryList();
@@ -2529,20 +2532,25 @@ function checkNotesPW(){
 }
 
 function newNote(){
-  const id=Date.now();
+  const tempId=Date.now();
   const now=new Date();
   const date=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
-  const note={id,title:'새 일기',date,body:''};
-  // Firebase에 새 노트 저장
+  const note={id:tempId,title:'새 일기',date,body:''};
+  notesData.unshift(note);
+  // Firebase에 새 노트 저장 → fbId 받아서 업데이트
   if(window.fbSaveNote){
     window.fbSaveNote(note).then(fbId=>{
-      if(fbId) note.fbId=fbId;
+      if(fbId){
+        note.fbId=fbId;
+        note.id=fbId; // id도 fbId로 통일
+        const dl=document.getElementById('diary-list');
+        if(dl)dl.innerHTML=renderDiaryList();
+      }
     }).catch(e=>console.log('new note err',e));
   }
-  notesData.unshift(note);
   const dl=document.getElementById('diary-list');
   if(dl)dl.innerHTML=renderDiaryList();
-  openNote(id);
+  openNote(String(tempId));
 }
 
 /* ── Profile data (edit 가능) ── */
