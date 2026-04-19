@@ -605,6 +605,9 @@ input[type=range]{flex:1;accent-color:var(--sky);}
   window.fbDeleteGalleryPost = async function(fbId) {
     await db.collection('galleryPosts').doc(fbId).delete();
   };
+  window.fbUpdateGalleryPost = async function(fbId, data) {
+    await db.collection('galleryPosts').doc(fbId).update(data);
+  };
 
   // ── Notes ──
   window.fbSaveNote = async function(note) {
@@ -1280,7 +1283,7 @@ function buildGallery(){
 function renderGalleryItems(){
   // galleryPosts(관리자 게시글) + sampleImages(기본) 합치기
   const postItems = galleryPosts.map(p=>({
-    src: p.img||p.thumb||'', ph:'linear-gradient(135deg,#b0d0f0,#80b0e0)',
+    src: p.thumb||p.img||'', ph:'linear-gradient(135deg,#b0d0f0,#80b0e0)',
     name: p.title, date: p.date, size:'—', fbId:p.fbId, isPost:true, post:p
   }));
   const all=[...postItems,...sampleImages,...uploadedList.map(u=>({ph:null,src:u.src,name:u.name,date:'방금',size:'—'}))];
@@ -1334,25 +1337,166 @@ function openGalleryItem(idx){
 function showGalleryPostDetail(post){
   const wc = document.getElementById('gallery-win-content');
   if(!wc) return;
+  const adminBtns = galleryAdminUnlocked ? `
+    <button onclick="showGalleryEditForm('${post.fbId||post.id}')"
+      style="background:var(--sky-pale);border:1px solid var(--sky-light);border-radius:5px;padding:3px 8px;
+      font-size:0.65rem;color:var(--sky-dark);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 수정</button>
+    <button onclick="deleteGalleryPost('${post.fbId||post.id}')"
+      style="background:#fff0f0;border:1px solid #ffaaaa;border-radius:5px;padding:3px 8px;
+      font-size:0.65rem;color:#e05555;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑 삭제</button>` : '';
   wc.innerHTML = `
     <div style="display:flex;flex-direction:column;height:100%;">
       <div style="padding:8px 12px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);
-        display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        display:flex;align-items:center;gap:6px;flex-shrink:0;">
         <button onclick="hideGalleryEditor()" style="background:var(--sky-pale);border:1px solid var(--sky-light);
           border-radius:6px;padding:4px 10px;font-size:0.68rem;color:var(--sky-dark);cursor:pointer;
           font-family:'Noto Sans KR',sans-serif;">◂ 목록</button>
-        <span style="font-size:0.75rem;font-weight:700;color:var(--text);flex:1;">${post.title}</span>
-        ${galleryAdminUnlocked ? `<button onclick="deleteGalleryPost('${post.fbId||post.id}')"
-          style="background:#fff0f0;border:1px solid #ffaaaa;border-radius:5px;padding:3px 8px;
-          font-size:0.65rem;color:#e05555;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑 삭제</button>` : ''}
+        <span style="font-size:0.75rem;font-weight:700;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${post.title}</span>
+        ${adminBtns}
       </div>
       <div style="flex:1;overflow-y:auto;padding:16px;">
-        ${post.thumb ? `<img src="${post.thumb}" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;margin-bottom:12px;"/>` : ''}
-        ${post.img && post.img!==post.thumb ? `<img src="${post.img}" style="width:100%;border-radius:8px;margin-bottom:12px;"/>` : ''}
+        ${post.img ? `<img src="${post.img}" style="width:100%;border-radius:8px;margin-bottom:14px;"/>` : ''}
         <div style="font-size:0.85rem;line-height:1.9;color:var(--text);white-space:pre-line;">${post.body||''}</div>
-        <div style="margin-top:12px;font-size:0.62rem;color:var(--gray3);">${post.date||''}</div>
+        <div style="margin-top:14px;font-size:0.62rem;color:var(--gray3);border-top:1px solid var(--gray);padding-top:8px;">${post.date||''}</div>
       </div>
     </div>`;
+}
+
+function showGalleryEditForm(idOrFbId){
+  const post = galleryPosts.find(p=>p.fbId===idOrFbId||String(p.id)===String(idOrFbId));
+  if(!post) return;
+  const wc = document.getElementById('gallery-win-content');
+  if(!wc) return;
+  galleryThumbData = post.thumb||'';
+  galleryImgData = post.img||'';
+  wc.innerHTML = `
+    <div style="display:flex;flex-direction:column;height:100%;padding:14px;gap:10px;overflow-y:auto;box-sizing:border-box;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+        <button onclick="showGalleryPostDetail(galleryPosts.find(p=>p.fbId==='${idOrFbId}'||String(p.id)==='${idOrFbId}'))"
+          style="background:var(--sky-pale);border:1px solid var(--sky-light);border-radius:6px;padding:4px 10px;
+          font-size:0.68rem;color:var(--sky-dark);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">◂ 취소</button>
+        <span style="font-size:0.75rem;font-weight:700;color:var(--text);">게시글 수정</span>
+      </div>
+      <!-- 제목 -->
+      <div>
+        <div style="font-size:0.62rem;color:var(--text-light);margin-bottom:3px;">제목</div>
+        <input id="gp-edit-title" value="${(post.title||'').replace(/"/g,'&quot;')}"
+          style="width:100%;border:1px solid var(--sky-light);border-radius:7px;padding:7px 10px;
+          font-size:0.8rem;outline:none;font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;"/>
+      </div>
+      <!-- 썸네일 -->
+      <div>
+        <div style="font-size:0.62rem;color:var(--text-light);margin-bottom:3px;">썸네일 이미지</div>
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+          <div id="gp-edit-thumb-prev" style="width:64px;height:64px;border-radius:8px;flex-shrink:0;
+            background:var(--sky-pale);border:1px solid var(--sky-light);overflow:hidden;
+            display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:var(--text-light);">
+            ${post.thumb ? `<img src="${post.thumb}" style="width:100%;height:100%;object-fit:cover;"/>` : '썸네일'}
+          </div>
+          <div style="flex:1;position:relative;">
+            <input type="file" accept="image/*" onchange="previewGalleryEditThumb(this)"
+              style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;"/>
+            <div style="background:var(--sky-pale);border:1px dashed var(--sky);border-radius:7px;
+              padding:8px;font-size:0.68rem;color:var(--sky-dark);text-align:center;cursor:pointer;">
+              📁 썸네일 변경</div>
+          </div>
+        </div>
+      </div>
+      <!-- 본문 이미지 -->
+      <div>
+        <div style="font-size:0.62rem;color:var(--text-light);margin-bottom:3px;">본문 이미지</div>
+        <div id="gp-edit-img-prev" style="width:100%;min-height:60px;border-radius:8px;
+          background:var(--sky-pale);border:1px solid var(--sky-light);overflow:hidden;
+          display:flex;align-items:center;justify-content:center;margin-bottom:5px;">
+          ${post.img ? `<img src="${post.img}" style="width:100%;object-fit:contain;max-height:140px;"/>` : '<span style="font-size:0.65rem;color:var(--text-light);">이미지 없음</span>'}
+        </div>
+        <div style="position:relative;">
+          <input type="file" accept="image/*" onchange="previewGalleryEditImg(this)"
+            style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;"/>
+          <div style="background:var(--sky-pale);border:1px dashed var(--sky);border-radius:7px;
+            padding:6px;font-size:0.68rem;color:var(--sky-dark);text-align:center;cursor:pointer;">
+            📁 본문 이미지 변경</div>
+        </div>
+      </div>
+      <!-- 내용 -->
+      <div>
+        <div style="font-size:0.62rem;color:var(--text-light);margin-bottom:3px;">내용</div>
+        <textarea id="gp-edit-body" rows="4"
+          style="width:100%;border:1px solid var(--sky-light);border-radius:7px;padding:7px 10px;
+          font-size:0.78rem;outline:none;resize:none;line-height:1.7;
+          font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;">${post.body||''}</textarea>
+      </div>
+      <button onclick="saveGalleryEdit('${idOrFbId}')"
+        style="background:linear-gradient(135deg,var(--sky),var(--sky-dark));color:#fff;border:none;
+        border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;
+        font-family:'Noto Sans KR',sans-serif;">💾 수정 저장</button>
+    </div>`;
+}
+
+function previewGalleryEditThumb(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    galleryThumbData=e.target.result;
+    const prev=document.getElementById('gp-edit-thumb-prev');
+    if(prev) prev.innerHTML=`<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;"/>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function previewGalleryEditImg(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    galleryImgData=e.target.result;
+    const prev=document.getElementById('gp-edit-img-prev');
+    if(prev) prev.innerHTML=`<img src="${e.target.result}" style="width:100%;object-fit:contain;max-height:140px;"/>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveGalleryEdit(idOrFbId){
+  const post=galleryPosts.find(p=>p.fbId===idOrFbId||String(p.id)===String(idOrFbId));
+  if(!post) return;
+  const title=(document.getElementById('gp-edit-title')?.value||'').trim()||post.title;
+  const body=(document.getElementById('gp-edit-body')?.value||'').trim();
+  const btn=document.querySelector('[onclick*="saveGalleryEdit"]');
+  if(btn){btn.textContent='저장 중...';btn.disabled=true;}
+
+  // 새 파일이 선택됐으면 Cloudinary 업로드, 아니면 기존 URL 유지
+  const thumbFile=document.getElementById('gp-edit-thumb-prev')?.querySelector('input[type=file]')?.files?.[0];
+  const imgFile=document.getElementById('gp-edit-img-prev')?.querySelector('input[type=file]')?.files?.[0];
+
+  // 파일 입력 요소에서 직접 접근
+  const allInputs=document.querySelectorAll('input[type=file]');
+  let thumbInput=null, imgInput=null;
+  allInputs.forEach(inp=>{
+    if(inp.onchange?.toString().includes('previewGalleryEditThumb')) thumbInput=inp;
+    if(inp.onchange?.toString().includes('previewGalleryEditImg')) imgInput=inp;
+  });
+
+  const thumbF=thumbInput?.files?.[0];
+  const imgF=imgInput?.files?.[0];
+
+  Promise.all([
+    thumbF && window.uploadToCloudinary ? window.uploadToCloudinary(thumbF) : Promise.resolve(post.thumb||''),
+    imgF && window.uploadToCloudinary ? window.uploadToCloudinary(imgF) : Promise.resolve(post.img||''),
+  ]).then(async([thumbUrl,imgUrl])=>{
+    post.title=title;
+    post.body=body;
+    post.thumb=thumbUrl;
+    post.img=imgUrl;
+    // Firebase 업데이트
+    if(post.fbId && window.fbSaveGalleryPost){
+      try{ await window.fbUpdateGalleryPost(post.fbId,{title,body,thumb:thumbUrl,img:imgUrl}); }
+      catch(e){ console.log('gallery update err',e); }
+    }
+    showGalleryPostDetail(post);
+  }).catch(e=>{
+    console.error(e);
+    if(btn){btn.textContent='💾 수정 저장';btn.disabled=false;}
+    alert('저장 중 오류가 발생했어요.');
+  });
 }
 
 function deleteGalleryItem(idx){
@@ -1616,6 +1760,11 @@ function buildMusic(){
           style="flex:1;border:1px solid var(--sky-light);border-radius:6px;padding:5px 8px;
           font-size:0.7rem;outline:none;font-family:'Noto Sans KR',sans-serif;"/>
       </div>
+      <div style="margin-bottom:6px;">
+        <input id="yt-desc-input" placeholder="출처 / 설명 (예: No Copyright Music · NCS Release)"
+          style="width:100%;border:1px solid var(--sky-light);border-radius:6px;padding:5px 8px;
+          font-size:0.7rem;outline:none;font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;"/>
+      </div>
       <button onclick="addYTTrack()" style="width:100%;background:var(--sky);color:#fff;border:none;
         border-radius:6px;padding:6px;font-size:0.72rem;cursor:pointer;
         font-family:'Noto Sans KR',sans-serif;font-weight:700;">+ 추가</button>
@@ -1637,6 +1786,12 @@ function buildMusic(){
           <div class="np-title" id="np-title">재생할 곡을 선택하세요</div>
           <div class="np-artist" id="np-artist">아래 목록에서 선택</div>
         </div>
+      </div>
+      <!-- 출처/설명 -->
+      <div id="np-desc-box" style="display:none;padding:8px 14px;background:#f0f9ff;
+        border-bottom:1px solid var(--gray);font-size:0.68rem;line-height:1.6;color:var(--text-light);">
+        <span style="font-size:0.6rem;font-weight:700;color:var(--sky-dark);margin-right:4px;">📄 출처</span>
+        <span id="np-desc"></span>
       </div>
       <!-- playlist -->
       <div style="padding:10px 12px 4px;font-size:0.68rem;color:var(--text-light);font-weight:500;background:#f7fbff;">재생 목록</div>
@@ -1706,15 +1861,24 @@ function initPlayer(){
 function buildPL(){
   const pl=document.getElementById('pl-list');
   if(!pl)return;
-  pl.innerHTML=ytTracks.map((t,i)=>`
-    <div class="pl-item${curYT===i?' active':''}" onclick="playYT(${i})" style="cursor:pointer;">
-      <span class="pl-num">${String(i+1).padStart(2,'0')}</span>
-      <div style="flex:1;">
-        <div class="pl-name">${t.title}</div>
-        <div style="font-size:0.6rem;color:var(--text-light);">${t.artist}</div>
+  pl.innerHTML=ytTracks.map((t,i)=>{
+    const isActive=curYT===i;
+    const delBtn=musicAdminUnlocked
+      ? `<button onclick="event.stopPropagation();deleteYTTrack(${i})"
+          style="background:#fff0f0;border:1px solid #ffaaaa;border-radius:5px;
+          padding:2px 6px;font-size:0.6rem;color:#e05555;cursor:pointer;flex-shrink:0;margin-left:4px;">🗑</button>`
+      : '';
+    return `<div class="pl-item${isActive?' active':''}" onclick="playYT(${i})"
+        style="cursor:pointer;display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid var(--gray);">
+      <span class="pl-num" style="flex-shrink:0;">${String(i+1).padStart(2,'0')}</span>
+      <div style="flex:1;min-width:0;margin:0 6px;">
+        <div class="pl-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.title}</div>
+        <div style="font-size:0.6rem;color:var(--text-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.artist||''}</div>
       </div>
-      <span style="font-size:0.8rem;">${curYT===i?'▶':'○'}</span>
-    </div>`).join('');
+      <span style="font-size:0.8rem;flex-shrink:0;">${isActive?'▶':'○'}</span>
+      ${delBtn}
+    </div>`;
+  }).join('');
 }
 
 function playYT(i){
@@ -1723,9 +1887,20 @@ function playYT(i){
   const frame=document.getElementById('yt-frame');
   const title=document.getElementById('np-title');
   const artist=document.getElementById('np-artist');
+  const descBox=document.getElementById('np-desc-box');
+  const descEl=document.getElementById('np-desc');
   if(frame) frame.src=`https://www.youtube.com/embed/${t.id}?autoplay=1`;
   if(title) title.textContent=t.title;
-  if(artist) artist.textContent=t.artist;
+  if(artist) artist.textContent=t.artist||'';
+  // 출처/설명 표시
+  if(descBox && descEl){
+    if(t.desc && t.desc.trim()){
+      descEl.textContent=t.desc;
+      descBox.style.display='block';
+    } else {
+      descBox.style.display='none';
+    }
+  }
   buildPL();
 }
 
@@ -1746,23 +1921,51 @@ function addYTTrack(){
   const urlEl=document.getElementById('yt-url-input');
   const nameEl=document.getElementById('yt-name-input');
   const artistEl=document.getElementById('yt-artist-input');
+  const descEl=document.getElementById('yt-desc-input');
   if(!urlEl||!nameEl)return;
   const raw=urlEl.value.trim();
   const id=extractYTId(raw);
   if(!id){
-    alert('올바른 유튜브 주소 또는 영상 ID를 입력해주세요!\n예) https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    alert('올바른 유튜브 주소 또는 영상 ID를 입력해주세요!');
     return;
   }
   const title=nameEl.value.trim()||'제목 없음';
   const artist=artistEl?.value.trim()||'';
-  const track={id,title,artist};
+  const desc=descEl?.value.trim()||'';
+  const track={id,title,artist,desc};
   if(window.fbSaveYTTrack){
     window.fbSaveYTTrack(track).catch(e=>console.log('yt save err',e));
   }
   ytTracks.push(track);
-  urlEl.value='';nameEl.value='';if(artistEl)artistEl.value='';
+  urlEl.value='';nameEl.value='';
+  if(artistEl)artistEl.value='';
+  if(descEl)descEl.value='';
   buildPL();
   playYT(ytTracks.length-1);
+}
+
+function deleteYTTrack(i){
+  if(!confirm('이 곡을 삭제할까요?')) return;
+  const track=ytTracks[i];
+  if(track?.fbId && window.fbDeleteYTTrack){
+    window.fbDeleteYTTrack(track.fbId).catch(e=>console.log('yt del err',e));
+  }
+  if(curYT===i){
+    // 재생 중이면 중지
+    curYT=null;
+    const frame=document.getElementById('yt-frame');
+    if(frame) frame.src='';
+    const title=document.getElementById('np-title');
+    const artist=document.getElementById('np-artist');
+    const descBox=document.getElementById('np-desc-box');
+    if(title) title.textContent='재생할 곡을 선택하세요';
+    if(artist) artist.textContent='아래 목록에서 선택';
+    if(descBox) descBox.style.display='none';
+  } else if(curYT>i){
+    curYT--;
+  }
+  ytTracks.splice(i,1);
+  buildPL();
 }
 
 /* ── Board (admin only) ── */
