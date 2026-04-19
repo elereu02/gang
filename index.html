@@ -704,11 +704,19 @@ input[type=range]{flex:1;accent-color:var(--sky);}
 
   // ── Icons ──
   window.fbSaveIcons = async function(iconBg) {
-    // base64가 길어서 각 아이콘을 Cloudinary에 올린 URL로 저장
     await db.collection('settings').doc('icons').set(iconBg);
   };
   window.fbLoadIcons = async function() {
     const snap = await db.collection('settings').doc('icons').get();
+    return snap.exists ? snap.data() : null;
+  };
+
+  // ── Theme / Wallpaper ──
+  window.fbSaveTheme = async function(data) {
+    await db.collection('settings').doc('theme').set(data);
+  };
+  window.fbLoadTheme = async function() {
+    const snap = await db.collection('settings').doc('theme').get();
     return snap.exists ? snap.data() : null;
   };
 
@@ -794,11 +802,39 @@ input[type=range]{flex:1;accent-color:var(--sky);}
 
     try {
       // 휴지통
-      const trashItems = await window.fbLoadTrash();
-      if(trashItems.length && window.trashItems){
-        window.trashItems.splice(0, window.trashItems.length, ...trashItems);
+      const trashLoaded = await window.fbLoadTrash();
+      if(trashLoaded.length && window.trashItems){
+        window.trashItems.splice(0, window.trashItems.length, ...trashLoaded);
       }
     } catch(e){ console.log('trash load:', e); }
+
+    try {
+      // 테마/배경
+      const theme = await window.fbLoadTheme();
+      if(theme){
+        if(theme.wallpaperImg){
+          document.body.style.background = `url('${theme.wallpaperImg}') center/cover no-repeat fixed`;
+        } else if(theme.wallpaperGrad){
+          document.body.style.background = theme.wallpaperGrad;
+        }
+        if(theme.themeKey && window.applyThemePreset){
+          window.applyThemePreset(theme.themeKey);
+        }
+        if(theme.taskbarColor){
+          const tb=document.getElementById('taskbar');
+          if(tb) tb.style.background=theme.taskbarColor;
+        }
+        if(theme.winTitleColor){
+          let style=document.getElementById('dynamic-theme-style');
+          if(!style){style=document.createElement('style');style.id='dynamic-theme-style';document.head.appendChild(style);}
+          // 기존 스타일 유지하면서 타이틀 색만 적용
+          if(!style.textContent.includes('win-title')){
+            style.textContent+=`.win-title{background:${theme.winTitleColor} !important;}`;
+          }
+        }
+        console.log('✅ 테마 불러오기 완료');
+      }
+    } catch(e){ console.log('theme load:', e); }
 
     console.log('✅ Firebase 연결 완료!');
   });
@@ -2421,6 +2457,7 @@ function deleteCurrentNote(){
   // Firebase: 휴지통에 먼저 저장 → 완료 후 원본 삭제 (순서 중요!)
   if(note){
     const originalFbId=note.fbId;
+    console.log('🗑 메모장 삭제 시작, originalFbId:', originalFbId);
     const trashItem={...note,sourceType:'note',deletedAt:Date.now()};
     delete trashItem.fbId;
 
@@ -2428,14 +2465,22 @@ function deleteCurrentNote(){
       window.fbMoveToTrash(trashItem).then(newFbId=>{
         trashItem.fbId=newFbId;
         trashItems.push(trashItem);
+        console.log('✅ 휴지통 저장 완료, trashFbId:', newFbId);
         // 휴지통 저장 완료 후에 원본 삭제
         if(originalFbId && window.fbDeleteNote){
-          window.fbDeleteNote(originalFbId).catch(e=>console.log('note del err',e));
+          window.fbDeleteNote(originalFbId).then(()=>{
+            console.log('✅ 원본 notes 삭제 완료, fbId:', originalFbId);
+          }).catch(e=>console.error('❌ note del err', e));
+        } else {
+          console.warn('⚠️ originalFbId 없음 - Firebase에 저장된 적 없는 노트');
         }
-      }).catch(e=>console.log('trash move err',e));
+      }).catch(e=>console.error('❌ trash move err', e));
     } else {
+      console.warn('⚠️ fbMoveToTrash 함수 없음');
       trashItems.push(trashItem);
     }
+  } else {
+    console.warn('⚠️ note 객체 못찾음, currentNoteId:', currentNoteId);
   }
 }
 
@@ -3253,6 +3298,11 @@ function setWallpaperGrad(grad){
   document.body.style.background = grad;
   themeState.wallpaperBg = grad;
   themeState.wallpaperImg = '';
+  // Firebase에 저장
+  if(window.fbSaveTheme){
+    window.fbSaveTheme({wallpaperGrad:grad, wallpaperImg:'', themeKey:themeState.currentKey||''})
+      .catch(e=>console.log('theme save err',e));
+  }
 }
 function setWallpaperImg(input){
   const file = input.files[0]; if(!file) return;
@@ -3260,11 +3310,30 @@ function setWallpaperImg(input){
   reader.onload = e => {
     document.body.style.background = `url('${e.target.result}') center/cover no-repeat fixed`;
     themeState.wallpaperImg = e.target.result;
+    // Firebase에 저장 (단, base64 이미지는 크기 제한 주의 - Cloudinary 업로드 시도)
+    if(window.uploadToCloudinary && file){
+      window.uploadToCloudinary(file).then(url=>{
+        if(window.fbSaveTheme){
+          window.fbSaveTheme({wallpaperImg:url, wallpaperGrad:'', themeKey:themeState.currentKey||''})
+            .catch(err=>console.log('theme save err',err));
+        }
+        // 실제 URL로 배경 교체
+        document.body.style.background = `url('${url}') center/cover no-repeat fixed`;
+      }).catch(()=>{
+        // Cloudinary 실패시 base64로라도 저장 시도 (작은 이미지만)
+        console.log('wallpaper cloudinary upload failed, skipping firebase save');
+      });
+    }
   };
   reader.readAsDataURL(file);
 }
 function resetWallpaper(){
-  document.body.style.background = 'linear-gradient(160deg,#d6eeff 0%,#eaf6ff 40%,#f5faff 70%,#fff 100%)';
+  const defaultBg = 'linear-gradient(160deg,#d6eeff 0%,#eaf6ff 40%,#f5faff 70%,#fff 100%)';
+  document.body.style.background = defaultBg;
+  if(window.fbSaveTheme){
+    window.fbSaveTheme({wallpaperGrad:defaultBg, wallpaperImg:'', themeKey:''})
+      .catch(e=>console.log('theme save err',e));
+  }
 }
 
 /* icon image */
@@ -3449,9 +3518,23 @@ window.chatRooms=chatRooms;
 window.profileData=profileData;
 window.renderMessages=renderMessages;
 window.scrollChat=scrollChat;
+window.applyThemePreset=applyThemePreset;
+window.renderDiaryList=renderDiaryList;
 function applyThemePreset(key){
   const th = THEMES[key];
   if(!th) return;
+
+  // 현재 테마 키 저장
+  themeState.currentKey = key;
+
+  // Firebase에 테마 저장
+  if(window.fbSaveTheme){
+    window.fbSaveTheme({
+      themeKey: key,
+      wallpaperGrad: themeState.wallpaperBg||'',
+      wallpaperImg: themeState.wallpaperImg||''
+    }).catch(e=>console.log('theme save err',e));
+  }
 
   // ① CSS 변수 업데이트
   const root = document.documentElement;
