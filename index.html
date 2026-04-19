@@ -677,6 +677,16 @@ input[type=range]{flex:1;accent-color:var(--sky);}
     return snap.exists ? snap.data() : null;
   };
 
+  // ── Icons ──
+  window.fbSaveIcons = async function(iconBg) {
+    // base64가 길어서 각 아이콘을 Cloudinary에 올린 URL로 저장
+    await db.collection('settings').doc('icons').set(iconBg);
+  };
+  window.fbLoadIcons = async function() {
+    const snap = await db.collection('settings').doc('icons').get();
+    return snap.exists ? snap.data() : null;
+  };
+
   // ── 앱 초기화: 페이지 로드시 Firebase 데이터 불러오기 ──
   window.addEventListener('load', async () => {
     try {
@@ -718,6 +728,26 @@ input[type=range]{flex:1;accent-color:var(--sky);}
         Object.assign(window.profileData, prof);
       }
     } catch(e){ console.log('profile load:', e); }
+
+    try {
+      // 아이콘 이미지
+      const icons = await window.fbLoadIcons();
+      if(icons){
+        Object.assign(themeState.iconBg, icons);
+        // 바탕화면 아이콘에 저장된 이미지 적용
+        const labelMap = {about:'프로필',gallery:'그림',music:'음악',notes:'메모장',chat:'방명록',trash:'휴지통'};
+        Object.entries(icons).forEach(([iconId, url])=>{
+          if(!url) return;
+          const labels = document.querySelectorAll('.desk-icon .icon-label');
+          labels.forEach(lbl=>{
+            if(lbl.textContent.trim()===labelMap[iconId]){
+              const imgEl = lbl.previousElementSibling;
+              if(imgEl) imgEl.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;"/>`;
+            }
+          });
+        });
+      }
+    } catch(e){ console.log('icons load:', e); }
 
     // 채팅 실시간 리스닝
     try {
@@ -2723,32 +2753,56 @@ function resetWallpaper(){
 /* icon image */
 function setIconImg(iconId, input){
   const file = input.files[0]; if(!file) return;
+  const labelMap = {about:'프로필',gallery:'그림',music:'음악',notes:'메모장',chat:'방명록',trash:'휴지통'};
+
+  // 미리보기 먼저 (로컬 base64)
   const reader = new FileReader();
   reader.onload = e => {
-    themeState.iconBg[iconId] = e.target.result;
-    // find desktop icon by matching its label
+    const localUrl = e.target.result;
+    // 바탕화면 아이콘 즉시 반영
     const labels = document.querySelectorAll('.desk-icon .icon-label');
-    const labelMap = {about:'프로필',gallery:'그림',music:'음악',notes:'메모장',chat:'방명록',trash:'휴지통'};
     labels.forEach(lbl => {
       if(lbl.textContent.trim() === labelMap[iconId]){
         const imgEl = lbl.previousElementSibling;
-        if(imgEl){
-          imgEl.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;"/>`;
-        }
+        if(imgEl) imgEl.innerHTML = `<img src="${localUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;"/>`;
       }
     });
-    // update preview in admin panel
     const prev = document.getElementById('adm-icon-prev-'+iconId);
-    if(prev) prev.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;"/>`;
+    if(prev) prev.innerHTML = `<img src="${localUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;"/>`;
   };
   reader.readAsDataURL(file);
+
+  // Cloudinary 업로드 후 Firebase에 URL 저장
+  if(window.uploadToCloudinary){
+    window.uploadToCloudinary(file).then(url => {
+      themeState.iconBg[iconId] = url;
+      // Firebase에 전체 iconBg 저장
+      if(window.fbSaveIcons){
+        window.fbSaveIcons({...themeState.iconBg}).catch(e=>console.log('icon save err',e));
+      }
+      // 바탕화면 아이콘을 Cloudinary URL로 교체
+      const labels = document.querySelectorAll('.desk-icon .icon-label');
+      labels.forEach(lbl => {
+        if(lbl.textContent.trim() === labelMap[iconId]){
+          const imgEl = lbl.previousElementSibling;
+          if(imgEl) imgEl.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;"/>`;
+        }
+      });
+    }).catch(e=>{
+      console.log('cloudinary icon upload err', e);
+      alert('이미지 업로드에 실패했어요. 다시 시도해주세요.');
+    });
+  }
 }
 function resetIconImg(iconId){
   themeState.iconBg[iconId] = null;
+  // Firebase에서도 해당 아이콘 초기화
+  if(window.fbSaveIcons){
+    window.fbSaveIcons({...themeState.iconBg}).catch(e=>console.log('icon reset err',e));
+  }
   const prev = document.getElementById('adm-icon-prev-'+iconId);
   if(prev) prev.innerHTML = '현재';
-  // reload page icons to original SVG — re-open admin to see
-  alert('초기화하려면 창을 닫고 다시 열어주세요.');
+  alert('초기화됐어요! 창을 닫고 다시 열면 적용돼요.');
 }
 
 /* ── THEME PRESETS ── */
