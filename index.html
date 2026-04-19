@@ -1241,16 +1241,7 @@ function makeResizable(win,handle){
 }
 
 /* ─── Content builders ─── */
-var sampleImages=[
-  {ph:'linear-gradient(135deg,#74c0fc,#1971c2)',name:'하늘 풍경.jpg',date:'2025.04.12',size:'2.4 MB'},
-  {ph:'linear-gradient(135deg,#f093fb,#c44ddb)',name:'라벤더 밭.jpg',date:'2025.03.28',size:'1.8 MB'},
-  {ph:'linear-gradient(135deg,#69db7c,#2f9e44)',name:'봄 산책.jpg',date:'2025.03.10',size:'3.1 MB'},
-  {ph:'linear-gradient(135deg,#ffd43b,#f59f00)',name:'노을.jpg',date:'2025.02.20',size:'2.7 MB'},
-  {ph:'linear-gradient(135deg,#ffa94d,#e67700)',name:'가을 단풍.jpg',date:'2025.01.15',size:'1.5 MB'},
-  {ph:'linear-gradient(135deg,#ff6b6b,#c0392b)',name:'장미.jpg',date:'2024.12.05',size:'2.2 MB'},
-  {ph:'linear-gradient(135deg,#20c997,#0ca678)',name:'바다.jpg',date:'2024.11.18',size:'4.0 MB'},
-  {ph:'linear-gradient(135deg,#adb5bd,#495057)',name:'겨울 눈.jpg',date:'2024.10.30',size:'1.9 MB'},
-];
+var sampleImages=[];
 
 var uploadedList=[];
 var galleryView='grid';
@@ -1287,27 +1278,102 @@ function buildGallery(){
 }
 
 function renderGalleryItems(){
-  const all=[...sampleImages,...uploadedList.map((u,i)=>({ph:null,src:u.src,name:u.name,date:'방금',size:'—'}))];
+  // galleryPosts(관리자 게시글) + sampleImages(기본) 합치기
+  const postItems = galleryPosts.map(p=>({
+    src: p.img||p.thumb||'', ph:'linear-gradient(135deg,#b0d0f0,#80b0e0)',
+    name: p.title, date: p.date, size:'—', fbId:p.fbId, isPost:true, post:p
+  }));
+  const all=[...postItems,...sampleImages,...uploadedList.map(u=>({ph:null,src:u.src,name:u.name,date:'방금',size:'—'}))];
+
   if(galleryView==='grid'){
     return all.map((img,i)=>`
-      <div class="gal-thumb" onclick="openLB('${img.src||''}','${img.ph||''}')">
+      <div class="gal-thumb" style="position:relative;" onclick="openGalleryItem(${i})">
         ${img.src
           ? `<img class="thumb-img" src="${img.src}" />`
-          : `<div class="thumb-ph" style="background:${img.ph};aspect-ratio:1;"></div>`}
+          : `<div class="thumb-ph" style="background:${img.ph||'#ccc'};aspect-ratio:1;"></div>`}
         <div class="thumb-label">${img.name}</div>
+        ${img.isPost && galleryAdminUnlocked ? `<button onclick="event.stopPropagation();deleteGalleryItem(${i})"
+          style="position:absolute;top:4px;right:4px;background:rgba(220,50,50,0.85);border:none;
+          color:#fff;border-radius:50%;width:20px;height:20px;font-size:0.65rem;cursor:pointer;
+          display:flex;align-items:center;justify-content:center;">✕</button>` : ''}
       </div>`).join('');
   } else {
-    return all.map(img=>`
-      <div class="list-item" onclick="openLB('${img.src||''}','${img.ph||''}')">
+    return all.map((img,i)=>`
+      <div class="list-item" onclick="openGalleryItem(${i})" style="position:relative;">
         <div class="list-thumb">
           ${img.src
             ? `<img src="${img.src}" style="width:100%;height:100%;object-fit:cover;">`
-            : `<div class="list-thumb-ph" style="background:${img.ph};"></div>`}
+            : `<div class="list-thumb-ph" style="background:${img.ph||'#ccc'};"></div>`}
         </div>
         <div class="list-info"><div class="list-name">${img.name}</div><div class="list-meta">${img.date}</div></div>
-        <div class="list-size">${img.size}</div>
+        ${img.isPost && galleryAdminUnlocked
+          ? `<button onclick="event.stopPropagation();deleteGalleryItem(${i})"
+              style="background:#fff0f0;border:1px solid #ffaaaa;border-radius:5px;
+              padding:2px 7px;font-size:0.62rem;color:#e05555;cursor:pointer;">삭제</button>`
+          : `<div class="list-size">${img.size||''}</div>`}
       </div>`).join('');
   }
+}
+
+function openGalleryItem(idx){
+  const postItems = galleryPosts.map(p=>({
+    src:p.img||p.thumb||'', ph:'linear-gradient(135deg,#b0d0f0,#80b0e0)',
+    name:p.title, isPost:true, post:p, fbId:p.fbId
+  }));
+  const all=[...postItems,...sampleImages,...uploadedList.map(u=>({ph:null,src:u.src,name:u.name}))];
+  const img = all[idx];
+  if(!img) return;
+  if(img.isPost && img.post){
+    // 게시글 상세보기
+    showGalleryPostDetail(img.post);
+  } else {
+    openLB(img.src||'', img.ph||'');
+  }
+}
+
+function showGalleryPostDetail(post){
+  const wc = document.getElementById('gallery-win-content');
+  if(!wc) return;
+  wc.innerHTML = `
+    <div style="display:flex;flex-direction:column;height:100%;">
+      <div style="padding:8px 12px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);
+        display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <button onclick="hideGalleryEditor()" style="background:var(--sky-pale);border:1px solid var(--sky-light);
+          border-radius:6px;padding:4px 10px;font-size:0.68rem;color:var(--sky-dark);cursor:pointer;
+          font-family:'Noto Sans KR',sans-serif;">◂ 목록</button>
+        <span style="font-size:0.75rem;font-weight:700;color:var(--text);flex:1;">${post.title}</span>
+        ${galleryAdminUnlocked ? `<button onclick="deleteGalleryPost('${post.fbId||post.id}')"
+          style="background:#fff0f0;border:1px solid #ffaaaa;border-radius:5px;padding:3px 8px;
+          font-size:0.65rem;color:#e05555;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑 삭제</button>` : ''}
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px;">
+        ${post.thumb ? `<img src="${post.thumb}" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;margin-bottom:12px;"/>` : ''}
+        ${post.img && post.img!==post.thumb ? `<img src="${post.img}" style="width:100%;border-radius:8px;margin-bottom:12px;"/>` : ''}
+        <div style="font-size:0.85rem;line-height:1.9;color:var(--text);white-space:pre-line;">${post.body||''}</div>
+        <div style="margin-top:12px;font-size:0.62rem;color:var(--gray3);">${post.date||''}</div>
+      </div>
+    </div>`;
+}
+
+function deleteGalleryItem(idx){
+  const postItems = galleryPosts.map(p=>({fbId:p.fbId,id:p.id,isPost:true}));
+  const all=[...postItems,...sampleImages.map(()=>({})),...uploadedList.map(()=>({}))];
+  const item = all[idx];
+  if(!item||!item.isPost) return;
+  deleteGalleryPost(item.fbId||item.id);
+}
+
+function deleteGalleryPost(idOrFbId){
+  if(!confirm('이 게시글을 삭제할까요?')) return;
+  const idx = galleryPosts.findIndex(p=>p.fbId===idOrFbId||String(p.id)===String(idOrFbId));
+  if(idx>-1){
+    const post = galleryPosts[idx];
+    if(post.fbId && window.fbDeleteGalleryPost){
+      window.fbDeleteGalleryPost(post.fbId).catch(e=>console.log('gallery del err',e));
+    }
+    galleryPosts.splice(idx,1);
+  }
+  hideGalleryEditor();
 }
 
 /* ── Gallery Posts ── */
@@ -1536,20 +1602,23 @@ function buildMusic(){
     <!-- admin add panel (hidden by default) -->
     <div id="music-admin-panel" style="display:none;padding:10px 12px;background:var(--sky-pale);
       border-bottom:1px solid var(--sky-light);flex-shrink:0;">
-      <div style="font-size:0.65rem;color:var(--text-light);margin-bottom:6px;font-weight:700;">🔗 유튜브 영상 추가</div>
+      <div style="font-size:0.65rem;color:var(--text-light);margin-bottom:6px;font-weight:700;">🎵 유튜브 음악 추가</div>
+      <div style="margin-bottom:5px;">
+        <input id="yt-url-input" placeholder="유튜브 주소 또는 영상 ID"
+          style="width:100%;border:1px solid var(--sky-light);border-radius:6px;padding:5px 8px;
+          font-size:0.7rem;outline:none;font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;"/>
+      </div>
       <div style="display:flex;gap:5px;margin-bottom:5px;">
-        <input id="yt-id-input" placeholder="영상 ID (예: dQw4w9WgXcQ)"
+        <input id="yt-name-input" placeholder="곡 제목"
+          style="flex:1;border:1px solid var(--sky-light);border-radius:6px;padding:5px 8px;
+          font-size:0.7rem;outline:none;font-family:'Noto Sans KR',sans-serif;"/>
+        <input id="yt-artist-input" placeholder="가수명"
           style="flex:1;border:1px solid var(--sky-light);border-radius:6px;padding:5px 8px;
           font-size:0.7rem;outline:none;font-family:'Noto Sans KR',sans-serif;"/>
       </div>
-      <div style="display:flex;gap:5px;">
-        <input id="yt-name-input" placeholder="곡 제목"
-          style="flex:2;border:1px solid var(--sky-light);border-radius:6px;padding:5px 8px;
-          font-size:0.7rem;outline:none;font-family:'Noto Sans KR',sans-serif;"/>
-        <button onclick="addYTTrack()" style="flex:1;background:var(--sky);color:#fff;border:none;
-          border-radius:6px;padding:5px 8px;font-size:0.7rem;cursor:pointer;
-          font-family:'Noto Sans KR',sans-serif;">추가</button>
-      </div>
+      <button onclick="addYTTrack()" style="width:100%;background:var(--sky);color:#fff;border:none;
+        border-radius:6px;padding:6px;font-size:0.72rem;cursor:pointer;
+        font-family:'Noto Sans KR',sans-serif;font-weight:700;">+ 추가</button>
     </div>
     <div class="music-body" style="overflow-y:auto;flex:1;">
       <!-- YouTube embed area -->
@@ -1627,12 +1696,7 @@ function checkMusicAdminPW(){
 }
 
 /* ── YouTube playlist ── */
-var ytTracks=[
-  {id:'jfKfPfyJRdk',title:'lofi hip hop radio',artist:'Lofi Girl · 작업용'},
-  {id:'5qap5aO4i9A',title:'lofi hip hop - beats to relax',artist:'Lofi Girl · 휴식용'},
-  {id:'DWcJFNfaw9c',title:'chillhop music - jazz',artist:'Chillhop Music'},
-  {id:'kgx4WGK0oNU',title:'peaceful piano · study music',artist:'Soothing Relaxation'},
-];
+var ytTracks=[];
 var curYT=null;
 
 function initPlayer(){
@@ -1665,25 +1729,44 @@ function playYT(i){
   buildPL();
 }
 
+function extractYTId(input){
+  // 유튜브 URL에서 ID 추출
+  const patterns = [
+    /(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/,
+    /^([a-zA-Z0-9_-]{11})$/
+  ];
+  for(const p of patterns){
+    const m = input.match(p);
+    if(m) return m[1];
+  }
+  return null;
+}
+
 function addYTTrack(){
-  const idEl=document.getElementById('yt-id-input');
+  const urlEl=document.getElementById('yt-url-input');
   const nameEl=document.getElementById('yt-name-input');
-  if(!idEl||!nameEl)return;
-  const id=idEl.value.trim();
-  const name=nameEl.value.trim()||'사용자 추가 곡';
-  if(!id){alert('유튜브 영상 ID를 입력해주세요!');return;}
-  const track={id,title:name,artist:'직접 추가'};
+  const artistEl=document.getElementById('yt-artist-input');
+  if(!urlEl||!nameEl)return;
+  const raw=urlEl.value.trim();
+  const id=extractYTId(raw);
+  if(!id){
+    alert('올바른 유튜브 주소 또는 영상 ID를 입력해주세요!\n예) https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    return;
+  }
+  const title=nameEl.value.trim()||'제목 없음';
+  const artist=artistEl?.value.trim()||'';
+  const track={id,title,artist};
   if(window.fbSaveYTTrack){
     window.fbSaveYTTrack(track).catch(e=>console.log('yt save err',e));
   }
   ytTracks.push(track);
-  idEl.value='';nameEl.value='';
+  urlEl.value='';nameEl.value='';if(artistEl)artistEl.value='';
   buildPL();
   playYT(ytTracks.length-1);
 }
 
 /* ── Board (admin only) ── */
-const ADMIN_PW='1234'; // ← 여기서 비밀번호 변경!
+const ADMIN_PW='96969602'; // ← 여기서 비밀번호 변경!
 var boardUnlocked=false;
 
 var boardPosts=[
@@ -1858,7 +1941,7 @@ function buildNotes(){
     <div class="notes-list-view" id="notes-list-view">
       <div class="notes-list-toolbar">
         <span>${notesData.length}개의 일기</span>
-        <button class="new-note-btn" onclick="newNote()">+ 새 일기</button>
+        <button class="new-note-btn" onclick="openNewNoteWithPW()" style="width:28px;height:28px;border-radius:50%;padding:0;font-size:1rem;font-weight:700;display:flex;align-items:center;justify-content:center;">+</button>
       </div>
       <div class="diary-list" id="diary-list">${renderDiaryList()}</div>
     </div>
@@ -1971,6 +2054,50 @@ function deleteCurrentNote(){
   const dl=document.getElementById('diary-list');
   if(dl)dl.innerHTML=renderDiaryList();
   notesGoBack();
+}
+
+var notesAdminUnlocked = false;
+
+function openNewNoteWithPW(){
+  if(notesAdminUnlocked){ newNote(); return; }
+  const modal = document.createElement('div');
+  modal.id = 'np-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,20,60,0.55);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
+  modal.innerHTML = `<div style="background:#fff;border-radius:14px;padding:24px;width:260px;
+      box-shadow:0 16px 48px rgba(60,120,200,0.25);text-align:center;">
+      <div style="font-size:1.8rem;margin-bottom:6px;">📝</div>
+      <div style="font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:12px;">새 일기 작성</div>
+      <input id="np-pw" type="password" placeholder="비밀번호 입력"
+        style="width:100%;border:1px solid var(--sky-light);border-radius:8px;padding:7px 10px;
+        font-size:0.82rem;outline:none;text-align:center;letter-spacing:0.15em;margin-bottom:8px;"
+        onkeydown="if(event.key==='Enter')checkNotesPW()"/>
+      <div id="np-err" style="font-size:0.62rem;color:#e05555;height:12px;margin-bottom:6px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="document.getElementById('np-modal').remove()"
+          style="flex:1;background:#f0f4f8;border:1px solid var(--gray2);border-radius:8px;
+          padding:6px;font-size:0.72rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button onclick="checkNotesPW()"
+          style="flex:1;background:linear-gradient(135deg,var(--sky),var(--sky-dark));
+          color:#fff;border:none;border-radius:8px;padding:6px;font-size:0.72rem;cursor:pointer;
+          font-weight:700;font-family:'Noto Sans KR',sans-serif;">확인</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(()=>document.getElementById('np-pw')?.focus(), 80);
+}
+
+function checkNotesPW(){
+  const val = document.getElementById('np-pw')?.value;
+  if(val === ADMIN_PW){
+    notesAdminUnlocked = true;
+    document.getElementById('np-modal')?.remove();
+    newNote();
+  } else {
+    const err = document.getElementById('np-err');
+    if(err){ err.textContent='비밀번호가 틀렸어요'; setTimeout(()=>err.textContent='',1500); }
+    const inp = document.getElementById('np-pw');
+    if(inp){ inp.value=''; inp.focus(); }
+  }
 }
 
 function newNote(){
@@ -2095,7 +2222,11 @@ function showProfileEditor(){
   ).join('');
   const statsInputs = p.stats.map((s,i)=>
     `<div style="text-align:center;">
-      <div style="font-size:0.58rem;color:var(--text-light);margin-bottom:3px;">${s.lbl}</div>
+      <input id="edit-stat-lbl-${i}" value="${s.lbl}"
+        style="width:100%;border:1px solid var(--sky-light);border-radius:5px;
+        padding:3px 4px;font-size:0.62rem;text-align:center;outline:none;
+        font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;margin-bottom:3px;
+        color:var(--text-light);background:var(--sky-ultra);" placeholder="라벨"/>
       <input id="edit-stat-${i}" value="${s.num}"
         style="width:100%;border:1px solid var(--sky-light);border-radius:6px;
         padding:5px 4px;font-size:0.82rem;font-weight:700;text-align:center;
@@ -2230,7 +2361,10 @@ function saveProfileEdit(){
   profileData.name     = g('edit-name') || profileData.name;
   profileData.subtitle = g('edit-subtitle') || profileData.subtitle;
   profileData.bio      = g('edit-bio') || profileData.bio;
-  profileData.stats.forEach((s,i)=>{ const v=g(`edit-stat-${i}`); if(v) s.num=v; });
+  profileData.stats.forEach((s,i)=>{
+    const v=g(`edit-stat-${i}`); if(v) s.num=v;
+    const l=g(`edit-stat-lbl-${i}`); if(l) s.lbl=l;
+  });
   // Firebase에 프로필 저장
   if(window.fbSaveProfile){
     window.fbSaveProfile({
