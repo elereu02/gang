@@ -831,6 +831,9 @@ input[type=range]{flex:1;accent-color:var(--sky);}
         if(theme.chatEnabled === false){
           chatEnabled = false;
         }
+        if(theme.fontColor){
+          document.documentElement.style.setProperty('--text', theme.fontColor);
+        }
         if(theme.taskbarColor){
           const tb=document.getElementById('taskbar');
           if(tb) tb.style.background=theme.taskbarColor;
@@ -901,45 +904,45 @@ input[type=range]{flex:1;accent-color:var(--sky);}
     <div class="desk-icon" ondblclick="openWin('about')" onclick="selectIcon(this)">
       <div class="icon-img">
         <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-          <!-- 분홍 배경 + 하늘 테두리 -->
+          <!-- 분홍 배경 -->
           <rect x="0" y="0" width="16" height="16" fill="#f0b8d0"/>
           <rect x="1" y="1" width="14" height="14" fill="#fce8f0"/>
-          <!-- 아래 배경 가리개 (흉상 느낌) -->
-          <rect x="1" y="11" width="14" height="4" fill="#fce8f0"/>
+          <!-- 흉상 가리개 -->
+          <rect x="1" y="12" width="14" height="3" fill="#fce8f0"/>
 
-          <!-- LEFT ear -->
-          <rect x="2" y="4" width="2" height="4" fill="#222"/>
-          <rect x="1" y="5" width="1" height="3" fill="#222"/>
-          <!-- RIGHT ear -->
-          <rect x="12" y="4" width="2" height="4" fill="#222"/>
+          <!-- LEFT ear (중심8 기준 대칭) -->
+          <rect x="1" y="4" width="2" height="4" fill="#222"/>
+          <rect x="0" y="5" width="1" height="3" fill="#222"/>
+          <!-- RIGHT ear (완벽 대칭) -->
+          <rect x="13" y="4" width="2" height="4" fill="#222"/>
           <rect x="15" y="5" width="1" height="3" fill="#222"/>
 
-          <!-- head fill -->
-          <rect x="4" y="2"  width="8" height="1" fill="#fff"/>
-          <rect x="3" y="3"  width="10" height="7" fill="#fff"/>
-          <rect x="4" y="10" width="8" height="1" fill="#fff"/>
+          <!-- head fill (중앙 정렬) -->
+          <rect x="4" y="2" width="8" height="1" fill="#fff"/>
+          <rect x="3" y="3" width="10" height="8" fill="#fff"/>
+          <rect x="4" y="11" width="8" height="1" fill="#fff"/>
 
           <!-- head outline -->
           <rect x="4" y="1"  width="8" height="1" fill="#333"/>
           <rect x="3" y="2"  width="1" height="1" fill="#333"/>
           <rect x="12" y="2" width="1" height="1" fill="#333"/>
-          <rect x="2" y="3"  width="1" height="7" fill="#333"/>
-          <rect x="13" y="3" width="1" height="7" fill="#333"/>
-          <rect x="3" y="10" width="1" height="1" fill="#333"/>
-          <rect x="12" y="10" width="1" height="1" fill="#333"/>
-          <rect x="4" y="11" width="8" height="1" fill="#333"/>
+          <rect x="2" y="3"  width="1" height="8" fill="#333"/>
+          <rect x="13" y="3" width="1" height="8" fill="#333"/>
+          <rect x="3" y="11" width="1" height="1" fill="#333"/>
+          <rect x="12" y="11" width="1" height="1" fill="#333"/>
+          <rect x="4" y="12" width="8" height="1" fill="#333"/>
 
-          <!-- eyes -->
-          <rect x="6"  y="6" width="1" height="1" fill="#333"/>
-          <rect x="9"  y="6" width="1" height="1" fill="#333"/>
+          <!-- eyes: 중심8 기준 x=5(왼), x=10(오른) → 대칭 -->
+          <rect x="5" y="6" width="1" height="1" fill="#333"/>
+          <rect x="10" y="6" width="1" height="1" fill="#333"/>
 
-          <!-- smile -->
-          <rect x="6"  y="8" width="1" height="1" fill="#555"/>
-          <rect x="9"  y="8" width="1" height="1" fill="#555"/>
-          <rect x="7"  y="9" width="2" height="1" fill="#333"/>
+          <!-- smile: 중앙 정렬 -->
+          <rect x="6"  y="9" width="1" height="1" fill="#555"/>
+          <rect x="9"  y="9" width="1" height="1" fill="#555"/>
+          <rect x="7"  y="10" width="2" height="1" fill="#333"/>
 
-          <!-- chest (흉상 - 바닥에 살짝) -->
-          <rect x="5" y="12" width="6" height="2" fill="#fff"/>
+          <!-- chest -->
+          <rect x="5" y="13" width="6" height="1" fill="#fff"/>
           <rect x="4" y="12" width="1" height="2" fill="#333"/>
           <rect x="11" y="12" width="1" height="2" fill="#333"/>
           <rect x="5" y="14" width="6" height="1" fill="#333"/>
@@ -2387,7 +2390,7 @@ function buildNotes(){
     <div class="notes-list-view" id="notes-list-view">
       <div class="notes-list-toolbar">
         <span>${notesData.length}개의 메모</span>
-        <button class="new-note-btn" onclick="openNewNoteWithPW()" style="width:28px;height:28px;border-radius:50%;padding:0;font-size:1rem;font-weight:700;display:flex;align-items:center;justify-content:center;">+</button>
+        <button class="new-note-btn" onclick="newNote()" style="width:28px;height:28px;border-radius:50%;padding:0;font-size:1rem;font-weight:700;display:flex;align-items:center;justify-content:center;">+</button>
       </div>
       <div class="diary-list" id="diary-list">${renderDiaryList()}</div>
     </div>
@@ -2396,13 +2399,13 @@ function buildNotes(){
       <div class="notes-detail-toolbar">
         <button class="back-btn" onclick="notesGoBack()">◂ 목록</button>
         <div class="detail-spacer"></div>
-        ${notesAdminUnlocked ? `
         <button class="fmt-btn" onclick="fmtNote('bold')"><b>B</b></button>
         <button class="fmt-btn" onclick="fmtNote('italic')"><i>I</i></button>
         <button class="fmt-btn" onclick="fmtNote('underline')"><u>U</u></button>
+        ${notesAdminUnlocked ? `
         <button class="fmt-btn" onclick="saveCurrentNote()" style="margin-left:4px;">💾 저장</button>
         <button class="fmt-btn" onclick="deleteCurrentNote()" style="color:#d9534f;margin-left:2px;">🗑</button>
-        ` : '<button class="fmt-btn" onclick="openNewNoteWithPW()" style="font-size:0.65rem;">🔐 관리자</button>'}
+        ` : '<button class="fmt-btn" onclick="openNewNoteWithPW()" style="margin-left:4px;font-size:0.6rem;">🔐</button>'}
       </div>
       <div class="detail-paper">
         <input class="detail-title-input" id="note-title-input" placeholder="제목을 입력하세요" />
@@ -3343,6 +3346,24 @@ function buildAdmin(){
                 style="width:100%;height:28px;border:1px solid var(--sky-light);border-radius:6px;cursor:pointer;padding:2px;"/>
             </div>
           </div>
+          <div style="margin-top:8px;">
+            <div style="font-size:0.62rem;color:var(--text-light);margin-bottom:5px;">🔤 폰트 색상 프리셋</div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;">
+              ${[
+                ['기본(남색)','#1a5a8a'],['검정','#111111'],['흰색','#ffffff'],
+                ['회색','#666666'],['라벤더','#5a4080'],['초록','#1a5a2a'],
+                ['장미','#7a1040'],['황금','#7a5000'],
+              ].map(([name,col])=>
+                `<button onclick="setFontColor('${col}')"
+                  style="padding:4px 8px;background:${col};border:2px solid rgba(255,255,255,0.4);
+                  border-radius:6px;cursor:pointer;font-size:0.6rem;color:${col==='#ffffff'?'#333':'#fff'};
+                  font-weight:700;font-family:'Noto Sans KR',sans-serif;transition:transform 0.1s;"
+                  title="${name}">${name}</button>`
+              ).join('')}
+              <input type="color" value="#1a5a8a" onchange="setFontColor(this.value)"
+                style="width:32px;height:28px;border:1px solid var(--sky-light);border-radius:6px;cursor:pointer;padding:2px;" title="직접 선택"/>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -3392,9 +3413,8 @@ function setWallpaperGrad(grad){
   document.body.style.background = grad;
   themeState.wallpaperBg = grad;
   themeState.wallpaperImg = '';
-  // Firebase에 저장
   if(window.fbSaveTheme){
-    window.fbSaveTheme({wallpaperGrad:grad, wallpaperImg:'', themeKey:themeState.currentKey||''})
+    window.fbSaveTheme({wallpaperGrad:grad, wallpaperImg:''})
       .catch(e=>console.log('theme save err',e));
   }
 }
@@ -3621,13 +3641,10 @@ function applyThemePreset(key){
   // 현재 테마 키 저장
   themeState.currentKey = key;
 
-  // Firebase에 테마 저장
+  // Firebase에 테마 키만 저장 (배경은 건드리지 않음)
   if(window.fbSaveTheme){
-    window.fbSaveTheme({
-      themeKey: key,
-      wallpaperGrad: themeState.wallpaperBg||'',
-      wallpaperImg: themeState.wallpaperImg||''
-    }).catch(e=>console.log('theme save err',e));
+    window.fbSaveTheme({ themeKey: key })
+      .catch(e=>console.log('theme save err',e));
   }
 
   // ① CSS 변수 업데이트
@@ -3658,10 +3675,7 @@ function applyThemePreset(key){
   const isDark = th.isDark;
   style.textContent = `
     .win-title { background:linear-gradient(to bottom,${th.title1},${th.title2}) !important; }
-    .win-titletext { color:${th.isDark?'#ddeeff':'#1a5a8a'} !important; }
-    .diary-date-badge .day,.diary-date-badge .mon { color:${th.isDark?'#cce':'#1a5a8a'} !important; }
-    .detail-meta-row { color:${th.isDark?'#8899cc':'var(--sky-dark)'} !important; }
-    .diary-item-meta { color:${th.isDark?'#7788aa':'var(--gray3)'} !important; }
+    /* 폰트색은 별도 설정으로 관리 */
     .win-menubar { background:${th.menuBg} !important; border-bottom-color:${th.skyLight} !important; }
     .win-statusbar { background:${th.menuBg} !important; border-top-color:${th.skyLight} !important; }
     .win-content,.win { background:${th.winBg} !important; }
@@ -3744,6 +3758,22 @@ function applyThemePreset(key){
     .desk-icon.selected { background:${th.sky}44 !important; }
     .icon-label { color:${isDark?'#eee':th.text} !important; }
   `;
+}
+
+function setFontColor(color){
+  const root = document.documentElement;
+  root.style.setProperty('--text', color);
+  // 창 제목 폰트 색
+  let style = document.getElementById('dynamic-theme-style');
+  if(!style){ style=document.createElement('style'); style.id='dynamic-theme-style'; document.head.appendChild(style); }
+  // 기존 win-titletext 규칙 교체
+  style.textContent = style.textContent.replace(/\.win-titletext\{color:[^}]+\}/g,'');
+  style.textContent += `.win-titletext{color:${color} !important;}`;
+  // 날짜 배지
+  style.textContent = style.textContent.replace(/\.diary-date-badge[^{]*\{color:[^}]+\}/g,'');
+  style.textContent += `.diary-date-badge .day,.diary-date-badge .mon{color:${color} !important;}`;
+  // Firebase 저장
+  if(window.fbSaveTheme) window.fbSaveTheme({fontColor:color}).catch(()=>{});
 }
 
 /* colour picker shortcuts (still work for manual) */
