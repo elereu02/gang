@@ -634,11 +634,21 @@ input[type=range]{flex:1;accent-color:var(--sky);}
 
   // ── Notes ──
   window.fbSaveNote = async function(note) {
+    // 저장할 필드 모음 (tab, pinned, timestamp 포함)
+    const data = {
+      title: note.title||'',
+      body: note.body||'',
+      date: note.date||'',
+      tab: note.tab||'general',
+      pinned: note.pinned||false,
+      timestamp: note.timestamp||Date.now(),
+    };
+    if(note.id) data.id = note.id;
     if(note.fbId){
-      await db.collection('notes').doc(note.fbId).update({title:note.title,body:note.body,date:note.date});
+      await db.collection('notes').doc(note.fbId).update(data);
       return note.fbId;
     } else {
-      const ref = await db.collection('notes').add({title:note.title,body:note.body,date:note.date,id:note.id});
+      const ref = await db.collection('notes').add(data);
       return ref.id;
     }
   };
@@ -1676,14 +1686,24 @@ function deleteGalleryItem(idx){
 }
 
 function autoOpenPinnedWindows(){
-  // Firebase settings/pinned 에서 자동 열 창 목록 불러와서 열기
   if(window.fbLoadPinned){
     window.fbLoadPinned().then(pins=>{
       if(!pins || !pins.windows) return;
-      const order = ['gallery','notes','music','chat']; // 열리는 순서
-      order.forEach((id,i)=>{
+      // 모든 창 ID 순서대로 (notes-notice는 notes 창 + 공지사항 탭으로 처리)
+      const order = ['gallery','notes','notes-notice','music','chat','trash','about'];
+      let delay = 0;
+      order.forEach(id=>{
         if(pins.windows.includes(id)){
-          setTimeout(()=>openWin(id), i*200);
+          setTimeout(()=>{
+            if(id==='notes-notice'){
+              // 메모장 공지사항 탭으로 열기
+              openWin('notes');
+              setTimeout(()=>switchNotesTab('notice'), 300);
+            } else {
+              openWin(id);
+            }
+          }, delay);
+          delay += 200;
         }
       });
     }).catch(()=>{});
@@ -3691,7 +3711,7 @@ var chatNotice = ''; // 방명록 공지 한 줄
 
 function updatePinnedWindows(){
   // 체크된 창 목록 수집
-  const ids = ['gallery','notes','music','chat','trash','about'];
+  const ids = ['gallery','notes','notes-notice','music','chat','trash','about'];
   const checked = ids.filter(id=>{
     const el = document.getElementById('pin-win-'+id);
     return el && el.checked;
@@ -3938,7 +3958,8 @@ function buildAdmin(){
         <div style="display:flex;flex-direction:column;gap:6px;">
           ${[
             ['gallery','🖼 그림'],
-            ['notes','📝 메모장'],
+            ['notes','📝 메모장 (일반)'],
+            ['notes-notice','📌 메모장 (공지사항)'],
             ['music','🎵 플레이어'],
             ['chat','💬 방명록'],
             ['trash','🗂 게시판'],
