@@ -734,6 +734,15 @@ input[type=range]{flex:1;accent-color:var(--sky);}
     return snap.exists ? snap.data() : null;
   };
 
+  // ── Pinned Windows (자동 열기) ──
+  window.fbSavePinned = async function(windows) {
+    await db.collection('settings').doc('pinned').set({windows});
+  };
+  window.fbLoadPinned = async function() {
+    const snap = await db.collection('settings').doc('pinned').get();
+    return snap.exists ? snap.data() : null;
+  };
+
   // ── Theme / Wallpaper ──
   window.fbSaveTheme = async function(data) {
     // merge:true로 기존 데이터 유지하면서 업데이트
@@ -880,13 +889,18 @@ input[type=range]{flex:1;accent-color:var(--sky);}
       }
     } catch(e){ console.log('theme load:', e); }
 
+    try {
+      // 자동 열기 창 목록 로드
+      const pins = await window.fbLoadPinned();
+      if(pins && pins.windows){
+        themeState.pinnedWindows = pins.windows;
+      }
+    } catch(e){ console.log('pinned load:', e); }
+
     console.log('✅ Firebase 연결 완료!');
 
-    // 핀된 게시글 자동 팝업
-    setTimeout(()=>{
-      const pinned = window.galleryPosts && window.galleryPosts.find(p=>p.pinned);
-      if(pinned) showPinnedPostSplash(pinned);
-    }, 800);
+    // 고정된 창 자동 열기
+    setTimeout(()=>{ autoOpenPinnedWindows(); }, 600);
   });
 })();
 </script>
@@ -1636,47 +1650,19 @@ function deleteGalleryItem(idx){
   deleteGalleryPost(item.fbId||item.id);
 }
 
-function showPinnedPostSplash(post){
-  if(document.getElementById('pinned-splash')) return;
-  const el = document.createElement('div');
-  el.id = 'pinned-splash';
-  el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,20,60,0.6);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);animation:fadeIn 0.3s ease;';
-  el.innerHTML = `
-    <div style="background:#fff;border-radius:16px;width:min(420px,92vw);max-height:85vh;
-      overflow:hidden;display:flex;flex-direction:column;
-      box-shadow:0 24px 64px rgba(0,30,80,0.35);border:1px solid var(--sky-light);">
-      <!-- 헤더 -->
-      <div style="padding:12px 16px;background:var(--sky-ultra);border-bottom:1px solid var(--sky-light);
-        display:flex;align-items:center;gap:8px;flex-shrink:0;">
-        <span style="font-size:0.85rem;">📌</span>
-        <span style="font-size:0.78rem;font-weight:700;color:var(--sky-dark);flex:1;">공지</span>
-        <button onclick="document.getElementById('pinned-splash').remove()"
-          style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--gray3);
-          line-height:1;padding:2px 4px;">✕</button>
-      </div>
-      <!-- 내용 -->
-      <div style="overflow-y:auto;padding:20px;flex:1;">
-        ${post.img ? `<img src="${post.img}" style="width:100%;border-radius:10px;margin-bottom:14px;"/>` : ''}
-        <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px;">${post.title||''}</div>
-        <div style="font-size:0.83rem;line-height:1.9;color:var(--text);white-space:pre-line;">${post.body||''}</div>
-        <div style="margin-top:12px;font-size:0.62rem;color:var(--gray3);">${post.date||''}</div>
-      </div>
-      <!-- 하단 -->
-      <div style="padding:12px 16px;border-top:1px solid var(--gray);display:flex;gap:8px;flex-shrink:0;background:#fafcff;">
-        <button onclick="document.getElementById('pinned-splash').remove()"
-          style="flex:1;background:#f0f4f8;border:1px solid var(--gray);border-radius:8px;
-          padding:8px;font-size:0.75rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;color:var(--text-light);">
-          닫기</button>
-        <button onclick="document.getElementById('pinned-splash').remove();openWin('gallery');"
-          style="flex:2;background:linear-gradient(135deg,var(--sky),var(--sky-dark));color:#fff;
-          border:none;border-radius:8px;padding:8px;font-size:0.75rem;font-weight:700;cursor:pointer;
-          font-family:'Noto Sans KR',sans-serif;">
-          🖼 그림 더 보기</button>
-      </div>
-    </div>`;
-  document.body.appendChild(el);
-  // 바깥 클릭 시 닫기
-  el.addEventListener('click', e=>{ if(e.target===el) el.remove(); });
+function autoOpenPinnedWindows(){
+  // Firebase settings/pinned 에서 자동 열 창 목록 불러와서 열기
+  if(window.fbLoadPinned){
+    window.fbLoadPinned().then(pins=>{
+      if(!pins || !pins.windows) return;
+      const order = ['gallery','notes','music','chat']; // 열리는 순서
+      order.forEach((id,i)=>{
+        if(pins.windows.includes(id)){
+          setTimeout(()=>openWin(id), i*200);
+        }
+      });
+    }).catch(()=>{});
+  }
 }
 
 function togglePinPost(idOrFbId){
@@ -3409,6 +3395,20 @@ function sendMsg(){
 var adminUnlocked = false;
 var chatEnabled = true; // 방명록 ON/OFF
 
+function updatePinnedWindows(){
+  // 체크된 창 목록 수집
+  const ids = ['gallery','notes','music','chat','trash','about'];
+  const checked = ids.filter(id=>{
+    const el = document.getElementById('pin-win-'+id);
+    return el && el.checked;
+  });
+  themeState.pinnedWindows = checked;
+  // Firebase에 즉시 저장 (미리보기 불필요 - 다음 접속에 적용)
+  if(window.fbSavePinned){
+    window.fbSavePinned(checked).catch(e=>console.log('pinned save err',e));
+  }
+}
+
 function toggleChatEnabled(){
   chatEnabled = !chatEnabled;
   // Firebase에 저장
@@ -3441,6 +3441,7 @@ var themeState = {
   winTitleColor2: '#78c1f0',
   wallpaperBg: 'linear-gradient(160deg,#d6eeff 0%,#eaf6ff 40%,#f5faff 70%,#fff 100%)',
   wallpaperImg: '',
+  pinnedWindows: [], // 접속 시 자동 열기 창 목록
   iconBg: {
     about:  null, gallery: null, music: null,
     notes:  null, trash:   null, chat:  null,
@@ -3616,6 +3617,32 @@ function buildAdmin(){
       </div>
 
       <!-- 저장 -->
+      <!-- 접속 시 자동 열기 창 설정 -->
+      <div class="adm-section">
+        <div class="adm-title">📌 접속 시 자동으로 열 창</div>
+        <div style="font-size:0.65rem;color:var(--text-light);margin-bottom:8px;">체크한 창이 홈페이지 접속 시 자동으로 열려요</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${[
+            ['gallery','🖼 그림'],
+            ['notes','📝 메모장'],
+            ['music','🎵 플레이어'],
+            ['chat','💬 방명록'],
+            ['trash','🗂 게시판'],
+            ['about','👤 프로필'],
+          ].map(([id,label])=>`
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;
+              background:var(--sky-ultra);border:1px solid var(--sky-light);
+              border-radius:8px;padding:7px 10px;">
+              <input type="checkbox" id="pin-win-${id}"
+                ${(themeState.pinnedWindows||[]).includes(id)?'checked':''}
+                onchange="updatePinnedWindows()"
+                style="width:15px;height:15px;cursor:pointer;accent-color:var(--sky);"/>
+              <span style="font-size:0.75rem;color:var(--text);font-weight:500;">${label}</span>
+            </label>`
+          ).join('')}
+        </div>
+      </div>
+
       <!-- 방명록 ON/OFF -->
       <div class="adm-section">
         <div class="adm-title">💬 방명록 관리</div>
