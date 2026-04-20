@@ -2509,11 +2509,14 @@ function buildNotes(){
       <div style="display:flex;border-bottom:2px solid var(--sky-light);flex-shrink:0;background:var(--sky-ultra);">
         <button id="notes-tab-general" onclick="switchNotesTab('general')"
           style="flex:1;padding:7px;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;
-          background:transparent;color:var(--sky-dark);border-bottom:2px solid var(--sky);
-          margin-bottom:-2px;font-family:'Noto Sans KR',sans-serif;">📝 일반</button>
+          background:transparent;color:var(--sky-dark);
+          border-bottom:2px solid var(--sky);margin-bottom:-2px;
+          font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;">📝 일반</button>
         <button id="notes-tab-notice" onclick="switchNotesTab('notice')"
           style="flex:1;padding:7px;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;
-          background:transparent;color:var(--gray3);font-family:'Noto Sans KR',sans-serif;">📌 공지사항</button>
+          background:transparent;color:var(--gray3);
+          border-bottom:2px solid transparent;margin-bottom:-2px;
+          font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;">📌 공지사항</button>
       </div>
       <div class="notes-list-toolbar">
         <span id="notes-count-label">${notesData.length}개의 메모</span>
@@ -2547,8 +2550,15 @@ function switchNotesTab(tab){
   notesTab = tab;
   const gBtn = document.getElementById('notes-tab-general');
   const nBtn = document.getElementById('notes-tab-notice');
-  if(gBtn){ gBtn.style.color = tab==='general'?'var(--sky-dark)':'var(--gray3)'; gBtn.style.borderBottom = tab==='general'?'2px solid var(--sky)':'none'; }
-  if(nBtn){ nBtn.style.color = tab==='notice'?'var(--sky-dark)':'var(--gray3)'; nBtn.style.borderBottom = tab==='notice'?'2px solid var(--sky)':'none'; }
+  // 비활성도 transparent로 유지해야 크기 동일
+  if(gBtn){
+    gBtn.style.color = tab==='general'?'var(--sky-dark)':'var(--gray3)';
+    gBtn.style.borderBottom = tab==='general'?'2px solid var(--sky)':'2px solid transparent';
+  }
+  if(nBtn){
+    nBtn.style.color = tab==='notice'?'var(--sky-dark)':'var(--gray3)';
+    nBtn.style.borderBottom = tab==='notice'?'2px solid var(--sky)':'2px solid transparent';
+  }
   const dl = document.getElementById('diary-list');
   if(dl) dl.innerHTML = renderDiaryList();
   const lbl = document.getElementById('notes-count-label');
@@ -2670,6 +2680,26 @@ function toggleNoteTab(noteKey){
   openNote(noteKey);
   const dl=document.getElementById('diary-list');
   if(dl)dl.innerHTML=renderDiaryList();
+}
+
+function showNoteToast(msg){
+  // 메모장 창 안에 작은 토스트 표시
+  let toast = document.getElementById('note-toast');
+  if(!toast){
+    toast = document.createElement('div');
+    toast.id = 'note-toast';
+    toast.style.cssText = 'position:absolute;bottom:48px;left:50%;transform:translateX(-50%);'
+      +'background:rgba(30,80,160,0.9);color:#fff;padding:7px 18px;border-radius:20px;'
+      +'font-size:0.72rem;font-family:Noto Sans KR,sans-serif;z-index:999;pointer-events:none;'
+      +'white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,0.2);';
+    const wrap = document.getElementById('notes-wrap') || document.body;
+    wrap.style.position='relative';
+    wrap.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity='1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(()=>{ toast.style.opacity='0'; }, 1500);
 }
 
 function fmtNote(cmd){
@@ -2817,10 +2847,11 @@ function saveNoteEdit(noteId){
   }
   const dl=document.getElementById('diary-list');
   if(dl) dl.innerHTML=renderDiaryList();
-  setStatus('notes','저장됨 ✓');
-  setTimeout(()=>setStatus('notes',note.title),1500);
-  // 저장 후 읽기전용으로 복귀
-  openNote(noteId);
+
+  // 저장됐다는 토스트 메시지 표시 후 읽기 모드로
+  showNoteToast('💾 저장됐어요!');
+  const savedNoteKey = String(note.fbId||note.id);
+  setTimeout(()=>{ openNote(savedNoteKey); }, 800);
 }
 
 function openNewNoteWithPW(){
@@ -3510,6 +3541,72 @@ function sendMsg(){
 var adminUnlocked = false;
 var chatEnabled = true; // 방명록 ON/OFF
 var chatNotice = ''; // 방명록 공지 한 줄
+var desktopLocked = false; // 화면 잠금
+
+function toggleDesktopLock(){
+  desktopLocked = !desktopLocked;
+
+  if(desktopLocked){
+    // 잠금 레이어 생성
+    const layer = document.createElement('div');
+    layer.id = 'lock-layer';
+    layer.style.cssText = [
+      'position:fixed', 'inset:0', 'z-index:8999',
+      'background:transparent', 'cursor:not-allowed',
+    ].join(';');
+    // 관리자 패널 창(win-admin)은 통과시키기 위해 클릭 이벤트 처리
+    layer.addEventListener('click', e=>{
+      // 관리자 창 위에서 클릭하면 허용
+      const adminWin = document.getElementById('win-admin');
+      if(adminWin){
+        const r = adminWin.getBoundingClientRect();
+        if(e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom){
+          layer.style.pointerEvents='none';
+          setTimeout(()=>layer.style.pointerEvents='auto', 50);
+          return;
+        }
+      }
+      // 작업표시줄 관리자 버튼 클릭 허용
+      const taskbarStart = document.querySelector('.taskbar-start');
+      if(taskbarStart){
+        const r = taskbarStart.getBoundingClientRect();
+        if(e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom){
+          layer.style.pointerEvents='none';
+          setTimeout(()=>layer.style.pointerEvents='auto', 50);
+          return;
+        }
+      }
+      e.stopPropagation();
+    }, true);
+    document.body.appendChild(layer);
+
+    // 잠금 표시 배지
+    const badge = document.createElement('div');
+    badge.id = 'lock-badge';
+    badge.style.cssText = [
+      'position:fixed', 'bottom:56px', 'right:12px', 'z-index:9001',
+      'background:rgba(220,50,50,0.92)', 'color:#fff',
+      'padding:5px 12px', 'border-radius:20px',
+      'font-size:0.68rem', 'font-weight:700',
+      'font-family:Noto Sans KR,sans-serif',
+      'box-shadow:0 2px 8px rgba(0,0,0,0.2)',
+      'pointer-events:none',
+    ].join(';');
+    badge.textContent = '🔒 화면 잠금 중';
+    document.body.appendChild(badge);
+
+  } else {
+    // 잠금 해제
+    document.getElementById('lock-layer')?.remove();
+    document.getElementById('lock-badge')?.remove();
+  }
+
+  // 관리자 패널 버튼 새로고침
+  const adminContent = document.getElementById('content-admin');
+  if(adminContent) adminContent.innerHTML = buildAdmin();
+  initAdmin();
+}
+var chatNotice = ''; // 방명록 공지 한 줄
 
 function updatePinnedWindows(){
   // 체크된 창 목록 수집
@@ -3809,7 +3906,7 @@ function buildAdmin(){
         padding:8px 10px;font-size:0.68rem;color:#8a6d00;display:none;margin-bottom:6px;">
         👁 미리보기 중 — 아직 저장되지 않았어요
       </div>
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
         <button onclick="cancelThemePreview()"
           style="flex:1;background:#f0f4f8;border:1px solid var(--gray);border-radius:8px;
           padding:9px;font-size:0.75rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
@@ -3818,6 +3915,20 @@ function buildAdmin(){
           style="flex:2;background:linear-gradient(135deg,var(--sky),var(--sky-dark));color:#fff;
           border:none;border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;
           font-family:'Noto Sans KR',sans-serif;">💾 저장</button>
+      </div>
+
+      <!-- 화면 잠금 -->
+      <div class="adm-section" style="border:2px solid ${desktopLocked?'#e05555':'var(--sky-light)'};background:${desktopLocked?'#fff5f5':'var(--sky-ultra)'};">
+        <div class="adm-title" style="color:${desktopLocked?'#e05555':'var(--sky-dark)'};">🔒 화면 잠금</div>
+        <div style="font-size:0.65rem;color:var(--text-light);margin-bottom:8px;">
+          활성화하면 관리자 패널을 제외한 모든 창과 버튼 클릭이 비활성화돼요
+        </div>
+        <button onclick="toggleDesktopLock()"
+          style="width:100%;background:${desktopLocked?'#e05555':'var(--sky)'};color:#fff;border:none;
+          border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;
+          font-family:'Noto Sans KR',sans-serif;">
+          ${desktopLocked?'🔓 잠금 해제':'🔒 화면 잠금 켜기'}
+        </button>
       </div>
 
     </div>
