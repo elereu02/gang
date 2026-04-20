@@ -2815,9 +2815,19 @@ function showNoteEditor(){
   const noteId=String(note.fbId||note.id); // ID를 변수로 고정
   const safeTitle=(note.title||'').replace(/"/g,'&quot;').replace(/`/g,'&#96;');
 
+  const curTab = note.tab||'general';
   paper.innerHTML=`
     <input class="detail-title-input" id="note-title-input" value="${safeTitle}" />
-    <div class="detail-meta-row">${note.date||''}</div>
+    <div class="detail-meta-row" style="display:flex;align-items:center;gap:8px;">
+      <span>${note.date||''}</span>
+      <select id="note-tab-select"
+        style="border:1px solid var(--sky-light);border-radius:6px;padding:3px 7px;
+        font-size:0.68rem;color:var(--sky-dark);background:var(--sky-ultra);cursor:pointer;
+        font-family:'Noto Sans KR',sans-serif;outline:none;margin-left:auto;">
+        <option value="general" ${curTab!=='notice'?'selected':''}>📝 일반</option>
+        <option value="notice" ${curTab==='notice'?'selected':''}>📌 공지사항</option>
+      </select>
+    </div>
     <div class="detail-body" contenteditable="true" id="note-body-input"
       style="min-height:200px;">${note.body||''}</div>
     <div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--gray);">
@@ -2848,14 +2858,26 @@ function saveNoteEdit(noteId){
   if(!note){ alert('메모를 찾을 수 없어요.'); return; }
   const ti=document.getElementById('note-title-input');
   const bi=document.getElementById('note-body-input');
+  const tabSel=document.getElementById('note-tab-select');
   if(ti) note.title=ti.value;
   if(bi) note.body=bi.innerHTML;
+  // 탭 변경 처리
+  if(tabSel){
+    const prevTab = note.tab||'general';
+    note.tab = tabSel.value;
+    // 탭이 바뀌었으면 현재 보이는 탭도 맞춤
+    if(prevTab !== note.tab){
+      notesTab = note.tab;
+    }
+  }
   // Firebase 저장
   if(window.fbSaveNote){
     window.fbSaveNote(note).catch(e=>console.log('note save err',e));
   }
   const dl=document.getElementById('diary-list');
   if(dl) dl.innerHTML=renderDiaryList();
+  // 탭 버튼 UI 갱신
+  switchNotesTab(notesTab);
 
   // 저장됐다는 토스트 메시지 표시 후 읽기 모드로
   showNoteToast('💾 저장됐어요!');
@@ -2953,7 +2975,16 @@ function newNote(){
     paper.innerHTML=`
       <input class="detail-title-input" id="note-title-input" placeholder="제목을 입력하세요"
         value="새 메모" style="width:100%;box-sizing:border-box;"/>
-      <div class="detail-meta-row">${date}</div>
+      <div class="detail-meta-row" style="display:flex;align-items:center;gap:8px;">
+        <span>${date}</span>
+        <select id="note-tab-select"
+          style="border:1px solid var(--sky-light);border-radius:6px;padding:3px 7px;
+          font-size:0.68rem;color:var(--sky-dark);background:var(--sky-ultra);cursor:pointer;
+          font-family:'Noto Sans KR',sans-serif;outline:none;margin-left:auto;">
+          <option value="general" ${notesTab!=='notice'?'selected':''}>📝 일반</option>
+          <option value="notice" ${notesTab==='notice'?'selected':''}>📌 공지사항</option>
+        </select>
+      </div>
       <div class="detail-body" contenteditable="true" id="note-body-input"
         style="min-height:200px;" placeholder="내용을 작성하세요..."></div>
       <div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--gray);">
