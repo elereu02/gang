@@ -643,8 +643,16 @@ input[type=range]{flex:1;accent-color:var(--sky);}
     }
   };
   window.fbLoadNotes = async function() {
-    const snap = await db.collection('notes').orderBy('date','desc').get();
-    return snap.docs.map(d=>({fbId:d.id,...d.data()}));
+    try {
+      const snap = await db.collection('notes').orderBy('timestamp','desc').get();
+      return snap.docs.map(d=>({fbId:d.id,...d.data()}));
+    } catch(e) {
+      const snap = await db.collection('notes').orderBy('date','desc').get();
+      return snap.docs.map(d=>({fbId:d.id,...d.data()}));
+    }
+  };
+  window.fbUpdateNote = async function(fbId, data) {
+    await db.collection('notes').doc(fbId).update(data);
   };
   window.fbDeleteNote = async function(fbId) {
     await db.collection('notes').doc(fbId).delete();
@@ -767,8 +775,13 @@ input[type=range]{flex:1;accent-color:var(--sky);}
       // 일기
       const notes = await window.fbLoadNotes();
       if(notes.length && window.notesData){
-        // id 필드 보장 (Firebase 문서에 id가 없을 수 있음)
-        notes.forEach(n=>{ if(!n.id) n.id = n.fbId; });
+        notes.forEach((n,i)=>{
+          if(!n.id) n.id = n.fbId;
+          // timestamp 없는 기존 노트에 자동 추가
+          if(!n.timestamp && n.fbId){
+            db.collection('notes').doc(n.fbId).update({timestamp: Date.now() - i*1000}).catch(()=>{});
+          }
+        });
         window.notesData.splice(0, window.notesData.length, ...notes);
       }
     } catch(e){ console.log('notes load:', e); }
@@ -861,6 +874,9 @@ input[type=range]{flex:1;accent-color:var(--sky);}
         }
         if(theme.chatEnabled === false){
           chatEnabled = false;
+        }
+        if(theme.chatNotice){
+          chatNotice = theme.chatNotice;
         }
         if(theme.fontColor){
           document.documentElement.style.setProperty('--text', theme.fontColor);
@@ -2483,12 +2499,24 @@ function saveBoardPost(id,date){
 
 function initBoard(){/* nothing needed on open */}
 
+var notesTab = 'general'; // 'general' | 'notice'
+
 function buildNotes(){
   return `<div class="notes-wrap" id="notes-wrap">
     <!-- LIST VIEW -->
     <div class="notes-list-view" id="notes-list-view">
+      <!-- 탭 -->
+      <div style="display:flex;border-bottom:2px solid var(--sky-light);flex-shrink:0;background:var(--sky-ultra);">
+        <button id="notes-tab-general" onclick="switchNotesTab('general')"
+          style="flex:1;padding:7px;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;
+          background:transparent;color:var(--sky-dark);border-bottom:2px solid var(--sky);
+          margin-bottom:-2px;font-family:'Noto Sans KR',sans-serif;">📝 일반</button>
+        <button id="notes-tab-notice" onclick="switchNotesTab('notice')"
+          style="flex:1;padding:7px;font-size:0.72rem;font-weight:700;border:none;cursor:pointer;
+          background:transparent;color:var(--gray3);font-family:'Noto Sans KR',sans-serif;">📌 공지사항</button>
+      </div>
       <div class="notes-list-toolbar">
-        <span>${notesData.length}개의 메모</span>
+        <span id="notes-count-label">${notesData.length}개의 메모</span>
         <button class="new-note-btn" onclick="addNewNoteWithPW()"
           style="width:26px;height:26px;border-radius:50%;padding:0;font-size:1rem;
           font-weight:700;display:flex;align-items:center;justify-content:center;">+</button>
@@ -2500,10 +2528,8 @@ function buildNotes(){
       <div class="notes-detail-toolbar">
         <button class="back-btn" onclick="notesGoBack()">◂ 목록</button>
         <div class="detail-spacer"></div>
-        <!-- 수정 버튼: 비밀번호 필요 -->
         <button class="fmt-btn" onclick="openNoteEditPW()" style="font-size:0.68rem;">✏️ 수정</button>
       </div>
-      <!-- 읽기 전용 뷰 -->
       <div class="detail-paper" id="note-read-view">
         <div class="detail-title-input" id="note-title-display"
           style="font-family:'Noto Serif KR',serif;font-size:1.05rem;font-weight:700;
@@ -2517,23 +2543,48 @@ function buildNotes(){
   </div>`;
 }
 
+function switchNotesTab(tab){
+  notesTab = tab;
+  const gBtn = document.getElementById('notes-tab-general');
+  const nBtn = document.getElementById('notes-tab-notice');
+  if(gBtn){ gBtn.style.color = tab==='general'?'var(--sky-dark)':'var(--gray3)'; gBtn.style.borderBottom = tab==='general'?'2px solid var(--sky)':'none'; }
+  if(nBtn){ nBtn.style.color = tab==='notice'?'var(--sky-dark)':'var(--gray3)'; nBtn.style.borderBottom = tab==='notice'?'2px solid var(--sky)':'none'; }
+  const dl = document.getElementById('diary-list');
+  if(dl) dl.innerHTML = renderDiaryList();
+  const lbl = document.getElementById('notes-count-label');
+  const filtered = notesData.filter(n => tab==='notice' ? n.tab==='notice' : n.tab!=='notice');
+  if(lbl) lbl.textContent = filtered.length + '개의 메모';
+}
+
 /* ── Diary data & helpers ── */
 var notesData=[];
 var currentNoteId=null;
 
 function renderDiaryList(){
-  return notesData.map(n=>{
+  // 탭 필터
+  let filtered = notesData.filter(n => notesTab==='notice' ? n.tab==='notice' : n.tab!=='notice');
+  // 핀 먼저, 그 다음 timestamp 내림차순
+  filtered.sort((a,b)=>{
+    if(a.pinned && !b.pinned) return -1;
+    if(!a.pinned && b.pinned) return 1;
+    return (b.timestamp||0) - (a.timestamp||0);
+  });
+
+  if(filtered.length===0) return '<div style="padding:24px;text-align:center;font-size:0.78rem;color:var(--gray3);">메모가 없어요</div>';
+
+  return filtered.map(n=>{
     const parts=(n.date||'').split('.');
     const mon=parts[1]||'';const day=parts[2]||'';
-    const preview=(n.body||'').replace(/\n/g,' ');
-    const noteKey=n.fbId||n.id; // Firebase 노트는 fbId로 식별
-    return `<div class="diary-item" onclick="openNote('${noteKey}')">
+    const preview=(n.body||'').replace(/<[^>]+>/g,'').replace(/\n/g,' ');
+    const noteKey=String(n.fbId||n.id);
+    const pinIcon = n.pinned ? '📌 ' : '';
+    return `<div class="diary-item" style="position:relative;" onclick="openNote('${noteKey}')">
       <div class="diary-date-badge">
         <div class="day">${day}</div>
         <div class="mon">${mon}월</div>
       </div>
       <div class="diary-item-body">
-        <div class="diary-item-title">${n.title||''}</div>
+        <div class="diary-item-title">${pinIcon}${n.title||''}</div>
         <div class="diary-item-preview">${preview}</div>
         <div class="diary-item-meta">${n.date||''}</div>
       </div>
@@ -2546,24 +2597,79 @@ function openNote(id){
   const note=notesData.find(n=>String(n.fbId||n.id)===String(id));
   if(!note)return;
   currentNoteId=String(note.fbId||note.id);
-  // note-read-view를 항상 읽기전용으로 다시 그림 (편집모드 복귀 포함)
+
+  // 관리자모드면 바로 편집창으로
+  if(notesAdminUnlocked){
+    const lv=document.getElementById('notes-list-view');
+    const dv=document.getElementById('notes-detail-view');
+    if(lv)lv.classList.add('slide-out');
+    if(dv)dv.classList.add('slide-in');
+    setStatus('notes',note.title);
+    showNoteEditor();
+    return;
+  }
+
+  // 읽기전용 뷰
   const paper=document.getElementById('note-read-view');
   if(paper){
+    const noteKey=String(note.fbId||note.id);
+    const isPinned=note.pinned||false;
+    const isNotice=note.tab==='notice';
+    const adminActions = notesAdminUnlocked ? `
+      <button onclick="toggleNotePin('${noteKey}')"
+        style="background:${isPinned?'#fff8e0':'var(--sky-pale)'};border:1px solid ${isPinned?'#ffd700':'var(--sky-light)'};
+        border-radius:6px;padding:3px 8px;font-size:0.62rem;cursor:pointer;
+        color:${isPinned?'#b8860b':'var(--sky-dark)'};font-family:'Noto Sans KR',sans-serif;">
+        ${isPinned?'📌 고정됨':'📍 고정'}</button>
+      <button onclick="toggleNoteTab('${noteKey}')"
+        style="background:${isNotice?'#e8f0ff':'var(--sky-pale)'};border:1px solid ${isNotice?'#90b8ff':'var(--sky-light)'};
+        border-radius:6px;padding:3px 8px;font-size:0.62rem;cursor:pointer;
+        color:${isNotice?'#2040a0':'var(--sky-dark)'};font-family:'Noto Sans KR',sans-serif;">
+        ${isNotice?'📌 공지':'일반'}</button>` : '';
     paper.innerHTML=`
+      ${notesAdminUnlocked ? `<div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap;">${adminActions}</div>` : ''}
       <div class="detail-title-input" id="note-title-display"
         style="font-family:'Noto Serif KR',serif;font-size:1.05rem;font-weight:700;
         color:var(--text);margin-bottom:6px;border:none;background:transparent;
         width:100%;outline:none;pointer-events:none;">${note.title||''}</div>
       <div class="detail-meta-row" id="note-meta-row">${note.date||''}</div>
       <div class="detail-body" id="note-body-display"
-        style="min-height:200px;pointer-events:none;user-select:text;">${(note.body||'').replace(/\n/g,'<br>')}</div>`;
+        style="min-height:200px;pointer-events:none;user-select:text;">${note.body||''}</div>`;
   }
-  // slide
   const lv=document.getElementById('notes-list-view');
   const dv=document.getElementById('notes-detail-view');
   if(lv)lv.classList.add('slide-out');
   if(dv)dv.classList.add('slide-in');
   setStatus('notes',note.title);
+}
+
+function toggleNotePin(noteKey){
+  const note=notesData.find(n=>String(n.fbId||n.id)===String(noteKey));
+  if(!note)return;
+  note.pinned=!note.pinned;
+  if(note.fbId && window.fbUpdateNote) window.fbUpdateNote(note.fbId,{pinned:note.pinned}).catch(()=>{});
+  // 같은 탭 내 다른 핀 해제
+  if(note.pinned){
+    notesData.forEach(n=>{
+      if(String(n.fbId||n.id)!==String(noteKey) && n.pinned && n.tab===note.tab){
+        n.pinned=false;
+        if(n.fbId && window.fbUpdateNote) window.fbUpdateNote(n.fbId,{pinned:false}).catch(()=>{});
+      }
+    });
+  }
+  openNote(noteKey);
+  const dl=document.getElementById('diary-list');
+  if(dl)dl.innerHTML=renderDiaryList();
+}
+
+function toggleNoteTab(noteKey){
+  const note=notesData.find(n=>String(n.fbId||n.id)===String(noteKey));
+  if(!note)return;
+  note.tab = note.tab==='notice' ? 'general' : 'notice';
+  if(note.fbId && window.fbUpdateNote) window.fbUpdateNote(note.fbId,{tab:note.tab}).catch(()=>{});
+  openNote(noteKey);
+  const dl=document.getElementById('diary-list');
+  if(dl)dl.innerHTML=renderDiaryList();
 }
 
 function fmtNote(cmd){
@@ -2696,8 +2802,10 @@ function showNoteEditor(){
 }
 
 function saveNoteEdit(noteId){
-  // ID를 직접 받아서 처리 (currentNoteId 의존 안 함)
-  const note=notesData.find(n=>String(n.fbId||n.id)===String(noteId));
+  // ID를 직접 받아서 처리 - fbId 또는 tempId 모두 처리
+  let note = notesData.find(n=>String(n.fbId)===String(noteId));
+  if(!note) note = notesData.find(n=>String(n.id)===String(noteId));
+  if(!note) note = notesData[0]; // 방금 만든 노트면 첫번째
   if(!note){ alert('메모를 찾을 수 없어요.'); return; }
   const ti=document.getElementById('note-title-input');
   const bi=document.getElementById('note-body-input');
@@ -2721,9 +2829,9 @@ function openNewNoteWithPW(){
 }
 
 function addNewNoteWithPW(){
-  // + 버튼: 비번 후 새 메모 바로 작성
+  // + 버튼: 비번 인증 → 관리자 모드 → 새 메모
   if(notesAdminUnlocked){ newNote(); return; }
-  openNotePWModal(()=>newNote());
+  openNotePWModal(()=>{ notesAdminUnlocked=true; newNote(); });
 }
 
 function openNotePWModal(callback){
@@ -2772,7 +2880,7 @@ function newNote(){
   const tempId=Date.now();
   const now=new Date();
   const date=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
-  const note={id:tempId,title:'새 메모',date,body:''};
+  const note={id:tempId,title:'새 메모',date,body:'',tab:notesTab,timestamp:Date.now()};
   notesData.unshift(note);
 
   // Firebase 저장 → fbId 받아서 업데이트
@@ -3202,6 +3310,13 @@ function buildChat(){
       <button onclick="toggleChatAdmin()" style="margin-left:auto;background:#ffc107;border:none;
         border-radius:5px;padding:2px 8px;font-size:0.62rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">닫기</button>
     </div>
+    <!-- 공지 한 줄 -->
+    ${chatNotice ? `<div id="chat-notice-bar" style="padding:6px 12px;background:linear-gradient(135deg,var(--sky-pale),#fff8e0);
+      border-bottom:1px solid var(--sky-light);font-size:0.68rem;color:var(--sky-dark);
+      display:flex;align-items:center;gap:6px;">
+      <span style="font-size:0.75rem;">📢</span>
+      <span style="flex:1;">${chatNotice}</span>
+    </div>` : ''}
     <!-- nickname input -->
     <div style="padding:6px 12px;background:var(--sky-ultra);border-bottom:1px solid var(--gray);
       display:flex;align-items:center;gap:6px;flex-shrink:0;">
@@ -3394,6 +3509,7 @@ function sendMsg(){
 /* ─── Admin Panel ─── */
 var adminUnlocked = false;
 var chatEnabled = true; // 방명록 ON/OFF
+var chatNotice = ''; // 방명록 공지 한 줄
 
 function updatePinnedWindows(){
   // 체크된 창 목록 수집
@@ -3407,6 +3523,26 @@ function updatePinnedWindows(){
   if(window.fbSavePinned){
     window.fbSavePinned(checked).catch(e=>console.log('pinned save err',e));
   }
+}
+
+function saveChatNotice(){
+  const val = document.getElementById('chat-notice-input')?.value.trim()||'';
+  chatNotice = val;
+  // Firebase 저장
+  if(window.fbSaveTheme) window.fbSaveTheme({chatNotice:val}).catch(()=>{});
+  // 방명록 창 갱신
+  const noticeBar = document.getElementById('chat-notice-bar');
+  if(val){
+    if(noticeBar){ noticeBar.querySelector('span:last-child').textContent=val; noticeBar.style.display='flex'; }
+    else {
+      // 방명록 창 다시 빌드
+      const cm = document.getElementById('content-chat');
+      if(cm){ cm.innerHTML=buildChat(); initChat(); }
+    }
+  } else {
+    if(noticeBar) noticeBar.style.display='none';
+  }
+  alert('공지가 저장됐어요!');
 }
 
 function toggleChatEnabled(){
@@ -3646,7 +3782,7 @@ function buildAdmin(){
       <!-- 방명록 ON/OFF -->
       <div class="adm-section">
         <div class="adm-title">💬 방명록 관리</div>
-        <div style="display:flex;align-items:center;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
           <div style="flex:1;font-size:0.72rem;color:var(--text-light);">
             현재: <span id="chat-status-label" style="font-weight:700;color:var(--sky-dark);">${chatEnabled?'🟢 열림':'🔴 닫힘'}</span>
           </div>
@@ -3656,6 +3792,15 @@ function buildAdmin(){
             font-family:'Noto Sans KR',sans-serif;" id="chat-toggle-btn">
             ${chatEnabled?'🔴 방명록 닫기':'🟢 방명록 열기'}
           </button>
+        </div>
+        <div style="font-size:0.62rem;color:var(--text-light);margin-bottom:4px;">📢 공지 한 줄 (비워두면 표시 안 됨)</div>
+        <div style="display:flex;gap:6px;">
+          <input id="chat-notice-input" value="${chatNotice||''}" placeholder="방명록 공지 내용 입력..."
+            style="flex:1;border:1px solid var(--sky-light);border-radius:8px;padding:6px 10px;
+            font-size:0.72rem;outline:none;font-family:'Noto Sans KR',sans-serif;"/>
+          <button onclick="saveChatNotice()"
+            style="background:var(--sky);color:#fff;border:none;border-radius:8px;padding:6px 12px;
+            font-size:0.72rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-weight:700;">저장</button>
         </div>
       </div>
 
