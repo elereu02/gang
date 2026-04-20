@@ -557,6 +557,16 @@ input[type=range]{flex:1;accent-color:var(--sky);}
   transition:background 0.2s;
 }
 .lb-close:hover{background:rgba(255,255,255,0.3);}
+@media (max-width:600px){
+  .win { min-width: 0 !important; }
+  .win-title { -webkit-user-select:none; user-select:none; }
+  .win-resize { display:none; } /* 모바일에서 리사이즈 핸들 숨김 */
+  .desk-icon { width:64px; }
+  .icon-img { width:44px; height:44px; }
+  .icon-label { font-size:0.58rem; }
+  #taskbar { padding:0 6px; }
+  .tb-btn { font-size:0.6rem; padding:3px 6px; max-width:80px; }
+}
 </style>
 <!-- Firebase SDK -->
 <!-- Firebase Compat SDK (전역 스크립트 방식) -->
@@ -1215,12 +1225,16 @@ function openWin(id){
   w.className='win focused';
   w.id='win-'+id;
 
-  // position — stagger
+  // 모바일 대응: 화면 너비에 맞게 창 크기 조정
+  const vw=window.innerWidth, vh=window.innerHeight-48;
+  const isMobile = vw < 600;
+  const winW = isMobile ? Math.min(cfg.w, vw - 16) : cfg.w;
+  const winH = isMobile ? Math.min(cfg.h, vh - 20) : cfg.h;
+
   const offset=Object.keys(wins).length*28;
-  const vw=window.innerWidth,vh=window.innerHeight-48;
-  const left=Math.min(80+offset,vw-cfg.w-20);
-  const top=Math.min(60+offset,vh-cfg.h-20);
-  w.style.cssText=`left:${left}px;top:${top}px;width:${cfg.w}px;height:${cfg.h}px;`;
+  const left = isMobile ? Math.max(0,(vw-winW)/2) : Math.min(80+offset, vw-winW-20);
+  const top  = isMobile ? Math.max(4, (vh-winH)/2) : Math.min(60+offset, vh-winH-20);
+  w.style.cssText=`left:${left}px;top:${top}px;width:${winW}px;height:${winH}px;`;
 
   w.innerHTML=`
     <div class="win-title" id="title-${id}">
@@ -2560,13 +2574,16 @@ function openNoteEditPW(){
 }
 
 function showNoteEditor(){
-  // 현재 읽기 뷰를 편집 뷰로 전환
   const note=notesData.find(n=>String(n.fbId||n.id)===String(currentNoteId));
   if(!note) return;
   const paper=document.getElementById('note-read-view');
   if(!paper) return;
+  const noteId=String(note.fbId||note.id); // ID를 변수로 고정
+  const safeTitle=(note.title||'').replace(/"/g,'&quot;').replace(/`/g,'&#96;');
+  const safeBody=(note.body||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
   paper.innerHTML=`
-    <input class="detail-title-input" id="note-title-input" value="${(note.title||'').replace(/"/g,'&quot;')}" />
+    <input class="detail-title-input" id="note-title-input" value="${safeTitle}" />
     <div class="detail-meta-row">${note.date||''}</div>
     <div class="detail-body" contenteditable="true" id="note-body-input"
       style="min-height:200px;">${(note.body||'').replace(/\n/g,'<br>')}</div>
@@ -2575,11 +2592,11 @@ function showNoteEditor(){
       <button class="fmt-btn" onclick="fmtNote('italic')"><i>I</i></button>
       <button class="fmt-btn" onclick="fmtNote('underline')"><u>U</u></button>
       <div style="flex:1;"></div>
-      <button onclick="openNote(currentNoteId)"
+      <button onclick="openNote('${noteId}')"
         style="background:#f0f4f8;border:1px solid var(--gray);border-radius:6px;
         padding:5px 10px;font-size:0.72rem;color:var(--text-light);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
         ✖ 취소</button>
-      <button onclick="saveCurrentNote()"
+      <button onclick="saveNoteEdit('${noteId}')"
         style="background:var(--sky);color:#fff;border:none;border-radius:6px;
         padding:5px 12px;font-size:0.72rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
         💾 저장</button>
@@ -2588,7 +2605,26 @@ function showNoteEditor(){
         padding:5px 10px;font-size:0.72rem;color:#e05555;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
         🗑 삭제</button>
     </div>`;
-  // 편집 모드 진입
+}
+
+function saveNoteEdit(noteId){
+  // ID를 직접 받아서 처리 (currentNoteId 의존 안 함)
+  const note=notesData.find(n=>String(n.fbId||n.id)===String(noteId));
+  if(!note){ alert('메모를 찾을 수 없어요.'); return; }
+  const ti=document.getElementById('note-title-input');
+  const bi=document.getElementById('note-body-input');
+  if(ti) note.title=ti.value;
+  if(bi) note.body=bi.innerText;
+  // Firebase 저장
+  if(window.fbSaveNote){
+    window.fbSaveNote(note).catch(e=>console.log('note save err',e));
+  }
+  const dl=document.getElementById('diary-list');
+  if(dl) dl.innerHTML=renderDiaryList();
+  setStatus('notes','저장됨 ✓');
+  setTimeout(()=>setStatus('notes',note.title),1500);
+  // 저장 후 읽기전용으로 복귀
+  openNote(noteId);
 }
 
 function openNewNoteWithPW(){
