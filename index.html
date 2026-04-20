@@ -840,17 +840,22 @@ input[type=range]{flex:1;accent-color:var(--sky);}
       if(theme){
         if(theme.wallpaperImg){
           document.body.style.background = `url('${theme.wallpaperImg}') center/cover no-repeat fixed`;
+          themeState.wallpaperImg = theme.wallpaperImg;
+          themeState.wallpaperBg = '';
         } else if(theme.wallpaperGrad){
           document.body.style.background = theme.wallpaperGrad;
+          themeState.wallpaperBg = theme.wallpaperGrad;
+          themeState.wallpaperImg = '';
         }
         if(theme.themeKey && window.applyThemePreset){
-          window.applyThemePreset(theme.themeKey);
+          window.applyThemePreset(theme.themeKey, true); // silent: 미리보기바 표시 안 함
         }
         if(theme.chatEnabled === false){
           chatEnabled = false;
         }
         if(theme.fontColor){
           document.documentElement.style.setProperty('--text', theme.fontColor);
+          themeState.fontColor = theme.fontColor;
         }
         if(theme.taskbarColor){
           const tb=document.getElementById('taskbar');
@@ -3629,7 +3634,7 @@ async function saveThemeSettings(){
     saveData.wallpaperImg = themeState.wallpaperImg||'';
   }
 
-  if(themeState.fontColor) saveData.fontColor = themeState.fontColor;
+  saveData.fontColor = themeState.fontColor||'';
 
   // Firebase 저장
   if(window.fbSaveTheme){
@@ -3887,15 +3892,15 @@ window.renderMessages=renderMessages;
 window.scrollChat=scrollChat;
 window.applyThemePreset=applyThemePreset;
 window.renderDiaryList=renderDiaryList;
-function applyThemePreset(key){
+function applyThemePreset(key, silent){
   const th = THEMES[key];
   if(!th) return;
 
   // 현재 테마 키 저장
   themeState.currentKey = key;
 
-  // 미리보기만 (저장 버튼 눌러야 Firebase 반영)
-  showPreviewBar();
+  // 로드 시(silent=true)에는 미리보기 바 표시 안 함
+  if(!silent) showPreviewBar();
 
   // ① CSS 변수 업데이트
   const root = document.documentElement;
