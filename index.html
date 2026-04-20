@@ -2412,14 +2412,9 @@ function buildNotes(){
     <div class="notes-list-view" id="notes-list-view">
       <div class="notes-list-toolbar">
         <span>${notesData.length}개의 메모</span>
-        <div style="display:flex;gap:5px;align-items:center;">
-          <button class="new-note-btn" onclick="openNewNoteWithPW()"
-            style="background:rgba(255,255,255,0.3);font-size:0.62rem;padding:3px 8px;
-            border-radius:8px;width:auto;height:auto;">🔐 관리자</button>
-          <button class="new-note-btn" onclick="addNewNoteWithPW()"
-            style="width:26px;height:26px;border-radius:50%;padding:0;font-size:1rem;
-            font-weight:700;display:flex;align-items:center;justify-content:center;">+</button>
-        </div>
+        <button class="new-note-btn" onclick="addNewNoteWithPW()"
+          style="width:26px;height:26px;border-radius:50%;padding:0;font-size:1rem;
+          font-weight:700;display:flex;align-items:center;justify-content:center;">+</button>
       </div>
       <div class="diary-list" id="diary-list">${renderDiaryList()}</div>
     </div>
@@ -2474,13 +2469,18 @@ function openNote(id){
   const note=notesData.find(n=>String(n.fbId||n.id)===String(id));
   if(!note)return;
   currentNoteId=String(note.fbId||note.id);
-  // 읽기 전용으로 표시
-  const titleEl=document.getElementById('note-title-display');
-  const bodyEl=document.getElementById('note-body-display');
-  const meta=document.getElementById('note-meta-row');
-  if(titleEl) titleEl.textContent=note.title;
-  if(meta) meta.textContent=note.date;
-  if(bodyEl) bodyEl.innerHTML=(note.body||'').replace(/\n/g,'<br>');
+  // note-read-view를 항상 읽기전용으로 다시 그림 (편집모드 복귀 포함)
+  const paper=document.getElementById('note-read-view');
+  if(paper){
+    paper.innerHTML=`
+      <div class="detail-title-input" id="note-title-display"
+        style="font-family:'Noto Serif KR',serif;font-size:1.05rem;font-weight:700;
+        color:var(--text);margin-bottom:6px;border:none;background:transparent;
+        width:100%;outline:none;pointer-events:none;">${note.title||''}</div>
+      <div class="detail-meta-row" id="note-meta-row">${note.date||''}</div>
+      <div class="detail-body" id="note-body-display"
+        style="min-height:200px;pointer-events:none;user-select:text;">${(note.body||'').replace(/\n/g,'<br>')}</div>`;
+  }
   // slide
   const lv=document.getElementById('notes-list-view');
   const dv=document.getElementById('notes-detail-view');
