@@ -905,6 +905,11 @@ input[type=range]{flex:1;accent-color:var(--sky);}
             style.textContent+=`.win-title{background:${theme.winTitleColor} !important;}`;
           }
         }
+        // 화면 잠금 상태 복원
+        if(theme.desktopLocked === true){
+          desktopLocked = false; // 다시 토글되도록 false로 초기화
+          setTimeout(()=>toggleDesktopLock(), 1000); // 페이지 로드 후 잠금 적용
+        }
         console.log('✅ 테마 불러오기 완료');
       }
     } catch(e){ console.log('theme load:', e); }
@@ -3547,6 +3552,52 @@ var chatEnabled = true; // 방명록 ON/OFF
 var chatNotice = ''; // 방명록 공지 한 줄
 var desktopLocked = false; // 화면 잠금
 
+function showUnlockModal(){
+  // 이미 모달 있으면 중복 방지
+  if(document.getElementById('unlock-modal')) return;
+  const modal = document.createElement('div');
+  modal.id = 'unlock-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,20,60,0.6);'
+    +'display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:28px;width:280px;
+      box-shadow:0 24px 64px rgba(0,30,80,0.35);text-align:center;">
+      <div style="font-size:2rem;margin-bottom:8px;">🔒</div>
+      <div style="font-size:0.9rem;font-weight:700;color:#333;margin-bottom:4px;">화면 잠금 해제</div>
+      <div style="font-size:0.72rem;color:#888;margin-bottom:16px;">관리자 비밀번호를 입력하세요</div>
+      <input id="unlock-pw-input" type="password" placeholder="비밀번호 입력"
+        style="width:100%;border:1px solid #ddd;border-radius:8px;padding:9px 12px;
+        font-size:0.85rem;outline:none;text-align:center;letter-spacing:0.15em;
+        margin-bottom:8px;box-sizing:border-box;"
+        onkeydown="if(event.key==='Enter')checkUnlockPW()"/>
+      <div id="unlock-pw-err" style="font-size:0.65rem;color:#e05555;height:14px;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="document.getElementById('unlock-modal').remove()"
+          style="flex:1;background:#f0f4f8;border:1px solid #ddd;border-radius:8px;
+          padding:8px;font-size:0.75rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button onclick="checkUnlockPW()"
+          style="flex:2;background:linear-gradient(135deg,#e05555,#c03030);color:#fff;
+          border:none;border-radius:8px;padding:8px;font-size:0.75rem;font-weight:700;
+          cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔓 잠금 해제</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(()=>document.getElementById('unlock-pw-input')?.focus(), 80);
+}
+
+function checkUnlockPW(){
+  const val = document.getElementById('unlock-pw-input')?.value;
+  if(val === ADMIN_PW){
+    document.getElementById('unlock-modal')?.remove();
+    toggleDesktopLock(); // 잠금 해제
+  } else {
+    const err = document.getElementById('unlock-pw-err');
+    if(err){ err.textContent='비밀번호가 틀렸어요'; setTimeout(()=>err.textContent='',1500); }
+    const inp = document.getElementById('unlock-pw-input');
+    if(inp){ inp.value=''; inp.focus(); }
+  }
+}
+
 function toggleDesktopLock(){
   desktopLocked = !desktopLocked;
 
@@ -3574,7 +3625,7 @@ function toggleDesktopLock(){
       'box-shadow:0 2px 12px rgba(180,0,0,0.3)',
       'cursor:pointer','letter-spacing:0.02em',
     ].join(';');
-    unlockBtn.onclick = ()=>toggleDesktopLock();
+    unlockBtn.onclick = ()=>showUnlockModal();
     document.body.appendChild(unlockBtn);
 
     // ── 열린 창들에 클릭 차단 오버레이 ──
@@ -3594,6 +3645,11 @@ function toggleDesktopLock(){
     document.getElementById('lock-layer')?.remove();
     document.getElementById('lock-unlock-btn')?.remove();
     document.querySelectorAll('.win-lock-overlay').forEach(el=>el.remove());
+  }
+
+  // Firebase에 잠금 상태 저장
+  if(window.fbSaveTheme){
+    window.fbSaveTheme({desktopLocked: desktopLocked}).catch(()=>{});
   }
 
   // 관리자 패널 갱신
