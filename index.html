@@ -2510,7 +2510,7 @@ function saveCurrentNote(){
   const ti=document.getElementById('note-title-input');
   const bi=document.getElementById('note-body-input');
   if(ti)note.title=ti.value;
-  if(bi)note.body=bi.innerText;
+  if(bi)note.body=bi.innerHTML;
   // Firebase 저장
   if(window.fbSaveNote){
     window.fbSaveNote(note).catch(e=>console.log('note save err',e));
@@ -2567,6 +2567,18 @@ function deleteCurrentNote(){
 
 var notesAdminUnlocked = false;
 
+function cancelNewNote(tempId){
+  const idx=notesData.findIndex(n=>String(n.id)===String(tempId)||String(n.fbId)===String(tempId));
+  if(idx>-1){
+    const note=notesData[idx];
+    if(note.fbId && window.fbDeleteNote) window.fbDeleteNote(note.fbId).catch(()=>{});
+    notesData.splice(idx,1);
+  }
+  const dl=document.getElementById('diary-list');
+  if(dl)dl.innerHTML=renderDiaryList();
+  notesGoBack();
+}
+
 function openNoteEditPW(){
   // 상세보기에서 수정 버튼 눌렀을 때
   if(notesAdminUnlocked){ showNoteEditor(); return; }
@@ -2580,13 +2592,12 @@ function showNoteEditor(){
   if(!paper) return;
   const noteId=String(note.fbId||note.id); // ID를 변수로 고정
   const safeTitle=(note.title||'').replace(/"/g,'&quot;').replace(/`/g,'&#96;');
-  const safeBody=(note.body||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
   paper.innerHTML=`
     <input class="detail-title-input" id="note-title-input" value="${safeTitle}" />
     <div class="detail-meta-row">${note.date||''}</div>
     <div class="detail-body" contenteditable="true" id="note-body-input"
-      style="min-height:200px;">${(note.body||'').replace(/\n/g,'<br>')}</div>
+      style="min-height:200px;">${note.body||''}</div>
     <div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--gray);">
       <button class="fmt-btn" onclick="fmtNote('bold')"><b>B</b></button>
       <button class="fmt-btn" onclick="fmtNote('italic')"><i>I</i></button>
@@ -2614,7 +2625,7 @@ function saveNoteEdit(noteId){
   const ti=document.getElementById('note-title-input');
   const bi=document.getElementById('note-body-input');
   if(ti) note.title=ti.value;
-  if(bi) note.body=bi.innerText;
+  if(bi) note.body=bi.innerHTML;
   // Firebase 저장
   if(window.fbSaveNote){
     window.fbSaveNote(note).catch(e=>console.log('note save err',e));
@@ -2686,20 +2697,60 @@ function newNote(){
   const date=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
   const note={id:tempId,title:'새 메모',date,body:''};
   notesData.unshift(note);
-  // Firebase에 새 노트 저장 → fbId 받아서 업데이트
+
+  // Firebase 저장 → fbId 받아서 업데이트
   if(window.fbSaveNote){
     window.fbSaveNote(note).then(fbId=>{
       if(fbId){
         note.fbId=fbId;
-        note.id=fbId; // id도 fbId로 통일
+        note.id=fbId;
+        currentNoteId=String(fbId);
         const dl=document.getElementById('diary-list');
         if(dl)dl.innerHTML=renderDiaryList();
       }
     }).catch(e=>console.log('new note err',e));
   }
+
   const dl=document.getElementById('diary-list');
   if(dl)dl.innerHTML=renderDiaryList();
-  openNote(String(tempId));
+
+  // 읽기뷰로 슬라이드한 뒤 바로 편집 모드로 진입
+  currentNoteId=String(tempId);
+  const lv=document.getElementById('notes-list-view');
+  const dv=document.getElementById('notes-detail-view');
+  if(lv)lv.classList.add('slide-out');
+  if(dv)dv.classList.add('slide-in');
+  setStatus('notes','새 메모');
+
+  // 편집 폼 바로 표시
+  const paper=document.getElementById('note-read-view');
+  if(paper){
+    paper.innerHTML=`
+      <input class="detail-title-input" id="note-title-input" placeholder="제목을 입력하세요"
+        value="새 메모" style="width:100%;box-sizing:border-box;"/>
+      <div class="detail-meta-row">${date}</div>
+      <div class="detail-body" contenteditable="true" id="note-body-input"
+        style="min-height:200px;" placeholder="내용을 작성하세요..."></div>
+      <div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--gray);">
+        <button class="fmt-btn" onclick="fmtNote('bold')"><b>B</b></button>
+        <button class="fmt-btn" onclick="fmtNote('italic')"><i>I</i></button>
+        <button class="fmt-btn" onclick="fmtNote('underline')"><u>U</u></button>
+        <div style="flex:1;"></div>
+        <button onclick="cancelNewNote(${tempId})"
+          style="background:#f0f4f8;border:1px solid var(--gray);border-radius:6px;
+          padding:5px 10px;font-size:0.72rem;color:var(--text-light);cursor:pointer;
+          font-family:'Noto Sans KR',sans-serif;">✖ 취소</button>
+        <button onclick="saveNoteEdit('${tempId}')"
+          style="background:var(--sky);color:#fff;border:none;border-radius:6px;
+          padding:5px 12px;font-size:0.72rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+          💾 저장</button>
+      </div>`;
+    // 제목에 포커스
+    setTimeout(()=>{
+      const ti=document.getElementById('note-title-input');
+      if(ti){ti.focus();ti.select();}
+    },100);
+  }
 }
 
 /* ── Profile data (edit 가능) ── */
