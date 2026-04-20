@@ -856,6 +856,13 @@ input[type=range]{flex:1;accent-color:var(--sky);}
         if(theme.fontColor){
           document.documentElement.style.setProperty('--text', theme.fontColor);
           themeState.fontColor = theme.fontColor;
+          // dynamic-theme-style에도 반영
+          let dynSt = document.getElementById('dynamic-theme-style');
+          if(!dynSt){ dynSt=document.createElement('style'); dynSt.id='dynamic-theme-style'; document.head.appendChild(dynSt); }
+          dynSt.textContent = dynSt.textContent.replace(/\.win-titletext\{color:[^}]+\}/g,'');
+          dynSt.textContent += `.win-titletext{color:${theme.fontColor} !important;}`;
+          dynSt.textContent = dynSt.textContent.replace(/\.diary-date-badge[^{]*\{color:[^}]+\}/g,'');
+          dynSt.textContent += `.diary-date-badge .day,.diary-date-badge .mon{color:${theme.fontColor} !important;}`;
         }
         if(theme.taskbarColor){
           const tb=document.getElementById('taskbar');
@@ -874,6 +881,12 @@ input[type=range]{flex:1;accent-color:var(--sky);}
     } catch(e){ console.log('theme load:', e); }
 
     console.log('✅ Firebase 연결 완료!');
+
+    // 핀된 게시글 자동 팝업
+    setTimeout(()=>{
+      const pinned = window.galleryPosts && window.galleryPosts.find(p=>p.pinned);
+      if(pinned) showPinnedPostSplash(pinned);
+    }, 800);
   });
 })();
 </script>
@@ -1402,6 +1415,8 @@ function renderGalleryItems(){
           ? `<img class="thumb-img" src="${img.src}" />`
           : `<div class="thumb-ph" style="background:${img.ph||'#ccc'};aspect-ratio:1;"></div>`}
         <div class="thumb-label">${img.name}</div>
+        ${img.isPost && img.post?.pinned ? `<div style="position:absolute;top:4px;left:4px;
+          font-size:0.75rem;" title="공지">📌</div>` : ''}
         ${img.isPost && galleryAdminUnlocked ? `<button onclick="event.stopPropagation();deleteGalleryItem(${i})"
           style="position:absolute;top:4px;right:4px;background:rgba(220,50,50,0.85);border:none;
           color:#fff;border-radius:50%;width:20px;height:20px;font-size:0.65rem;cursor:pointer;
@@ -1444,11 +1459,18 @@ function openGalleryItem(idx){
 function showGalleryPostDetail(post){
   const wc = document.getElementById('gallery-win-content');
   if(!wc) return;
+  const isPinned = post.pinned;
+  const pinId = post.fbId||post.id;
   const adminBtns = galleryAdminUnlocked ? `
-    <button onclick="showGalleryEditForm('${post.fbId||post.id}')"
+    <button onclick="togglePinPost('${pinId}')"
+      style="background:${isPinned?'#fff8e0':'var(--sky-pale)'};border:1px solid ${isPinned?'#ffd700':'var(--sky-light)'};
+      border-radius:5px;padding:3px 8px;font-size:0.65rem;
+      color:${isPinned?'#b8860b':'var(--sky-dark)'};cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+      ${isPinned?'📌 고정됨':'📍 고정'}</button>
+    <button onclick="showGalleryEditForm('${pinId}')"
       style="background:var(--sky-pale);border:1px solid var(--sky-light);border-radius:5px;padding:3px 8px;
       font-size:0.65rem;color:var(--sky-dark);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 수정</button>
-    <button onclick="deleteGalleryPost('${post.fbId||post.id}')"
+    <button onclick="deleteGalleryPost('${pinId}')"
       style="background:#fff0f0;border:1px solid #ffaaaa;border-radius:5px;padding:3px 8px;
       font-size:0.65rem;color:#e05555;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑 삭제</button>` : '';
   wc.innerHTML = `
@@ -1612,6 +1634,70 @@ function deleteGalleryItem(idx){
   const item = all[idx];
   if(!item||!item.isPost) return;
   deleteGalleryPost(item.fbId||item.id);
+}
+
+function showPinnedPostSplash(post){
+  if(document.getElementById('pinned-splash')) return;
+  const el = document.createElement('div');
+  el.id = 'pinned-splash';
+  el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,20,60,0.6);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);animation:fadeIn 0.3s ease;';
+  el.innerHTML = `
+    <div style="background:#fff;border-radius:16px;width:min(420px,92vw);max-height:85vh;
+      overflow:hidden;display:flex;flex-direction:column;
+      box-shadow:0 24px 64px rgba(0,30,80,0.35);border:1px solid var(--sky-light);">
+      <!-- 헤더 -->
+      <div style="padding:12px 16px;background:var(--sky-ultra);border-bottom:1px solid var(--sky-light);
+        display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <span style="font-size:0.85rem;">📌</span>
+        <span style="font-size:0.78rem;font-weight:700;color:var(--sky-dark);flex:1;">공지</span>
+        <button onclick="document.getElementById('pinned-splash').remove()"
+          style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--gray3);
+          line-height:1;padding:2px 4px;">✕</button>
+      </div>
+      <!-- 내용 -->
+      <div style="overflow-y:auto;padding:20px;flex:1;">
+        ${post.img ? `<img src="${post.img}" style="width:100%;border-radius:10px;margin-bottom:14px;"/>` : ''}
+        <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px;">${post.title||''}</div>
+        <div style="font-size:0.83rem;line-height:1.9;color:var(--text);white-space:pre-line;">${post.body||''}</div>
+        <div style="margin-top:12px;font-size:0.62rem;color:var(--gray3);">${post.date||''}</div>
+      </div>
+      <!-- 하단 -->
+      <div style="padding:12px 16px;border-top:1px solid var(--gray);display:flex;gap:8px;flex-shrink:0;background:#fafcff;">
+        <button onclick="document.getElementById('pinned-splash').remove()"
+          style="flex:1;background:#f0f4f8;border:1px solid var(--gray);border-radius:8px;
+          padding:8px;font-size:0.75rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;color:var(--text-light);">
+          닫기</button>
+        <button onclick="document.getElementById('pinned-splash').remove();openWin('gallery');"
+          style="flex:2;background:linear-gradient(135deg,var(--sky),var(--sky-dark));color:#fff;
+          border:none;border-radius:8px;padding:8px;font-size:0.75rem;font-weight:700;cursor:pointer;
+          font-family:'Noto Sans KR',sans-serif;">
+          🖼 그림 더 보기</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  // 바깥 클릭 시 닫기
+  el.addEventListener('click', e=>{ if(e.target===el) el.remove(); });
+}
+
+function togglePinPost(idOrFbId){
+  // 기존 핀된 게시글 해제
+  galleryPosts.forEach(p=>{
+    if((p.fbId||String(p.id)) !== String(idOrFbId) && p.pinned){
+      p.pinned = false;
+      if(p.fbId && window.fbUpdateGalleryPost){
+        window.fbUpdateGalleryPost(p.fbId, {pinned:false}).catch(()=>{});
+      }
+    }
+  });
+  // 현재 게시글 토글
+  const post = galleryPosts.find(p=>p.fbId===idOrFbId||String(p.id)===String(idOrFbId));
+  if(!post) return;
+  post.pinned = !post.pinned;
+  if(post.fbId && window.fbUpdateGalleryPost){
+    window.fbUpdateGalleryPost(post.fbId, {pinned:post.pinned}).catch(()=>{});
+  }
+  // 상세보기 새로고침
+  showGalleryPostDetail(post);
 }
 
 function deleteGalleryPost(idOrFbId){
@@ -4013,6 +4099,7 @@ function applyThemePreset(key, silent){
     .desk-icon:hover { background:${th.sky}28 !important; }
     .desk-icon.selected { background:${th.sky}44 !important; }
     .icon-label { color:${isDark?'#eee':th.text} !important; }
+    ${themeState.fontColor ? `.win-titletext{color:${themeState.fontColor} !important;} .diary-date-badge .day,.diary-date-badge .mon{color:${themeState.fontColor} !important;}` : ''}
   `;
 }
 
