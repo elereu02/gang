@@ -1823,9 +1823,10 @@ function openGalleryAdminPW(){
   setTimeout(()=>document.getElementById('gap-pw')?.focus(),80);
 }
 
-function checkGalleryAdminPW(){
+async function checkGalleryAdminPW(){
   const val=document.getElementById('gap-pw')?.value;
-  if(val===ADMIN_PW){
+  const h=await hashPW(val);
+  if(h===ADMIN_PW_HASH){
     galleryAdminUnlocked=true;
     document.getElementById('gap-modal')?.remove();
     showGalleryEditor();
@@ -2162,9 +2163,10 @@ function openMusicAdminPW(){
   document.body.appendChild(modal);
   setTimeout(()=>document.getElementById('map-pw')?.focus(),80);
 }
-function checkMusicAdminPW(){
+async function checkMusicAdminPW(){
   const val = document.getElementById('map-pw')?.value;
-  if(val===ADMIN_PW){
+  const h=await hashPW(val);
+  if(h===ADMIN_PW_HASH){
     musicAdminUnlocked=true;
     document.getElementById('map-modal')?.remove();
     const p=document.getElementById('music-admin-panel');
@@ -2296,7 +2298,14 @@ function deleteYTTrack(i){
 }
 
 /* ── Board (admin only) ── */
-const ADMIN_PW='96969602'; // ← 여기서 비밀번호 변경!
+// 비밀번호는 SHA-256 해시로 저장됩니다. 변경하려면 아래 값을 새 비밀번호의 SHA-256 해시로 교체하세요.
+// SHA-256 해시 생성: https://emn178.github.io/online-tools/sha256.html
+const ADMIN_PW_HASH='7f1b890bfcc22948333096d8b9c095714289010e87cb01cd305852f92d5e6405';
+
+async function hashPW(pw){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
 var boardUnlocked=false;
 
 var boardPosts=[
@@ -2334,9 +2343,10 @@ function openTrashBoard(){
   setTimeout(()=>document.getElementById('pw-input')?.focus(),100);
 }
 
-function checkPW(){
+async function checkPW(){
   const val=document.getElementById('pw-input')?.value;
-  if(val===ADMIN_PW){
+  const h=await hashPW(val);
+  if(h===ADMIN_PW_HASH){
     boardUnlocked=true;
     document.getElementById('pw-modal')?.remove();
     openWin('trash');
@@ -2972,9 +2982,10 @@ function openNotePWModal(callback){
   setTimeout(()=>document.getElementById('np-pw')?.focus(), 80);
 }
 
-function checkNotesPW(){
+async function checkNotesPW(){
   const val = document.getElementById('np-pw')?.value;
-  if(val === ADMIN_PW){
+  const h=await hashPW(val);
+  if(h===ADMIN_PW_HASH){
     notesAdminUnlocked = true;
     document.getElementById('np-modal')?.remove();
     if(window._notesPWCallback){ window._notesPWCallback(); window._notesPWCallback=null; }
@@ -3139,9 +3150,10 @@ function openProfileEdit(){
   setTimeout(()=>document.getElementById('prof-pw-input')?.focus(), 100);
 }
 
-function checkProfilePW(){
+async function checkProfilePW(){
   const val = document.getElementById('prof-pw-input')?.value;
-  if(val === ADMIN_PW){
+  const h=await hashPW(val);
+  if(h===ADMIN_PW_HASH){
     profileUnlocked = true;
     document.getElementById('prof-pw-modal')?.remove();
     showProfileEditor();
@@ -3490,9 +3502,10 @@ function toggleChatAdmin(){
   setTimeout(()=>document.getElementById('cap-pw')?.focus(),80);
 }
 
-function checkChatAdminPW(){
+async function checkChatAdminPW(){
   const val=document.getElementById('cap-pw')?.value;
-  if(val===ADMIN_PW){
+  const h=await hashPW(val);
+  if(h===ADMIN_PW_HASH){
     chatAdminUnlocked=true;
     document.getElementById('cap-modal')?.remove();
     enterChatAdminMode();
@@ -3664,11 +3677,12 @@ function showUnlockModal(){
   setTimeout(()=>document.getElementById('unlock-pw-input')?.focus(), 80);
 }
 
-function checkUnlockPW(){
+async function checkUnlockPW(){
   const val = document.getElementById('unlock-pw-input')?.value;
-  if(val === ADMIN_PW){
+  const h=await hashPW(val);
+  if(h===ADMIN_PW_HASH){
     document.getElementById('unlock-modal')?.remove();
-    toggleDesktopLock(); // 잠금 해제
+    toggleDesktopLock();
   } else {
     const err = document.getElementById('unlock-pw-err');
     if(err){ err.textContent='비밀번호가 틀렸어요'; setTimeout(()=>err.textContent='',1500); }
@@ -3840,9 +3854,10 @@ function openAdminPanel(){
   setTimeout(()=>document.getElementById('adm-pw-input')?.focus(), 100);
 }
 
-function checkAdminPW(){
+async function checkAdminPW(){
   const val = document.getElementById('adm-pw-input')?.value;
-  if(val === ADMIN_PW){
+  const h=await hashPW(val);
+  if(h===ADMIN_PW_HASH){
     adminUnlocked = true;
     document.getElementById('adm-pw-modal')?.remove();
     openWin('admin');
