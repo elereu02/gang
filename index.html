@@ -876,7 +876,7 @@ input[type=range]{flex:1;accent-color:var(--sky);}
         if(room){
           room.messages = msgs.map(m=>({
             from: m.from||'visitor', name: m.name||'익명',
-            text: m.text, time: m.time, fbId: m.fbId
+            text: m.text, time: m.time, fbId: m.fbId, timestamp: m.timestamp
           }));
           const cm = document.getElementById('chat-messages');
           if(cm && window.renderMessages){
@@ -3536,29 +3536,16 @@ function renderMessages(){
   if(!room)return '';
   let html='';
   let lastDateLabel='';
-  const todayStr=new Date().toISOString().slice(0,10); // YYYY-MM-DD
-
+  const todayStr=new Date().toISOString().slice(0,10);
   room.messages.forEach((m,idx)=>{
-    // 날짜 구분선
     let msgDate='';
     if(m.timestamp){
       const d=new Date(m.timestamp);
-      const y=d.getFullYear(), mo=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+      const y=d.getFullYear(),mo=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
       msgDate=`${y}-${mo}-${day}`;
-    } else {
-      msgDate=todayStr; // timestamp 없는 구 메시지는 오늘로
-    }
-    let dateLabel='';
-    if(msgDate===todayStr){
-      dateLabel='오늘';
-    } else {
-      const d=new Date(msgDate);
-      dateLabel=`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;
-    }
-    if(dateLabel!==lastDateLabel){
-      html+=`<div class="chat-day">${dateLabel}</div>`;
-      lastDateLabel=dateLabel;
-    }
+    } else { msgDate=todayStr; }
+    const dateLabel=msgDate===todayStr?'오늘':(()=>{const d=new Date(msgDate);return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;})();
+    if(dateLabel!==lastDateLabel){html+=`<div class="chat-day">${dateLabel}</div>`;lastDateLabel=dateLabel;}
     const delBtn=chatAdminMode
       ? `<button onclick="deleteChatMsg('${currentRoom}',${idx})"
           style="background:#ffecec;border:1px solid #ffaaaa;border-radius:4px;
