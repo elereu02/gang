@@ -1823,10 +1823,9 @@ function openGalleryAdminPW(){
   setTimeout(()=>document.getElementById('gap-pw')?.focus(),80);
 }
 
-async function checkGalleryAdminPW(){
+function checkGalleryAdminPW(){
   const val=document.getElementById('gap-pw')?.value;
-  const h=await hashPW(val);
-  if(h===ADMIN_PW_HASH){
+  if(val===ADMIN_PW){
     galleryAdminUnlocked=true;
     document.getElementById('gap-modal')?.remove();
     showGalleryEditor();
@@ -2163,10 +2162,9 @@ function openMusicAdminPW(){
   document.body.appendChild(modal);
   setTimeout(()=>document.getElementById('map-pw')?.focus(),80);
 }
-async function checkMusicAdminPW(){
+function checkMusicAdminPW(){
   const val = document.getElementById('map-pw')?.value;
-  const h=await hashPW(val);
-  if(h===ADMIN_PW_HASH){
+  if(val===ADMIN_PW){
     musicAdminUnlocked=true;
     document.getElementById('map-modal')?.remove();
     const p=document.getElementById('music-admin-panel');
@@ -2298,14 +2296,7 @@ function deleteYTTrack(i){
 }
 
 /* ── Board (admin only) ── */
-// 비밀번호는 SHA-256 해시로 저장됩니다. 변경하려면 아래 값을 새 비밀번호의 SHA-256 해시로 교체하세요.
-// SHA-256 해시 생성: https://emn178.github.io/online-tools/sha256.html
-const ADMIN_PW_HASH='7f1b890bfcc22948333096d8b9c095714289010e87cb01cd305852f92d5e6405';
-
-async function hashPW(pw){
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
+const ADMIN_PW='96969602'; // ← 여기서 비밀번호 변경!
 var boardUnlocked=false;
 
 var boardPosts=[
@@ -2343,10 +2334,9 @@ function openTrashBoard(){
   setTimeout(()=>document.getElementById('pw-input')?.focus(),100);
 }
 
-async function checkPW(){
+function checkPW(){
   const val=document.getElementById('pw-input')?.value;
-  const h=await hashPW(val);
-  if(h===ADMIN_PW_HASH){
+  if(val===ADMIN_PW){
     boardUnlocked=true;
     document.getElementById('pw-modal')?.remove();
     openWin('trash');
@@ -2982,10 +2972,9 @@ function openNotePWModal(callback){
   setTimeout(()=>document.getElementById('np-pw')?.focus(), 80);
 }
 
-async function checkNotesPW(){
+function checkNotesPW(){
   const val = document.getElementById('np-pw')?.value;
-  const h=await hashPW(val);
-  if(h===ADMIN_PW_HASH){
+  if(val === ADMIN_PW){
     notesAdminUnlocked = true;
     document.getElementById('np-modal')?.remove();
     if(window._notesPWCallback){ window._notesPWCallback(); window._notesPWCallback=null; }
@@ -3150,10 +3139,9 @@ function openProfileEdit(){
   setTimeout(()=>document.getElementById('prof-pw-input')?.focus(), 100);
 }
 
-async function checkProfilePW(){
+function checkProfilePW(){
   const val = document.getElementById('prof-pw-input')?.value;
-  const h=await hashPW(val);
-  if(h===ADMIN_PW_HASH){
+  if(val === ADMIN_PW){
     profileUnlocked = true;
     document.getElementById('prof-pw-modal')?.remove();
     showProfileEditor();
@@ -3502,10 +3490,9 @@ function toggleChatAdmin(){
   setTimeout(()=>document.getElementById('cap-pw')?.focus(),80);
 }
 
-async function checkChatAdminPW(){
+function checkChatAdminPW(){
   const val=document.getElementById('cap-pw')?.value;
-  const h=await hashPW(val);
-  if(h===ADMIN_PW_HASH){
+  if(val===ADMIN_PW){
     chatAdminUnlocked=true;
     document.getElementById('cap-modal')?.remove();
     enterChatAdminMode();
@@ -3547,8 +3534,31 @@ function deleteChatMsg(roomId, idx){
 function renderMessages(){
   const room=chatRooms.find(r=>r.id===currentRoom);
   if(!room)return '';
-  let html=`<div class="chat-day">오늘</div>`;
+  let html='';
+  let lastDateLabel='';
+  const todayStr=new Date().toISOString().slice(0,10); // YYYY-MM-DD
+
   room.messages.forEach((m,idx)=>{
+    // 날짜 구분선
+    let msgDate='';
+    if(m.timestamp){
+      const d=new Date(m.timestamp);
+      const y=d.getFullYear(), mo=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+      msgDate=`${y}-${mo}-${day}`;
+    } else {
+      msgDate=todayStr; // timestamp 없는 구 메시지는 오늘로
+    }
+    let dateLabel='';
+    if(msgDate===todayStr){
+      dateLabel='오늘';
+    } else {
+      const d=new Date(msgDate);
+      dateLabel=`${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;
+    }
+    if(dateLabel!==lastDateLabel){
+      html+=`<div class="chat-day">${dateLabel}</div>`;
+      lastDateLabel=dateLabel;
+    }
     const delBtn=chatAdminMode
       ? `<button onclick="deleteChatMsg('${currentRoom}',${idx})"
           style="background:#ffecec;border:1px solid #ffaaaa;border-radius:4px;
@@ -3677,12 +3687,11 @@ function showUnlockModal(){
   setTimeout(()=>document.getElementById('unlock-pw-input')?.focus(), 80);
 }
 
-async function checkUnlockPW(){
+function checkUnlockPW(){
   const val = document.getElementById('unlock-pw-input')?.value;
-  const h=await hashPW(val);
-  if(h===ADMIN_PW_HASH){
+  if(val === ADMIN_PW){
     document.getElementById('unlock-modal')?.remove();
-    toggleDesktopLock();
+    toggleDesktopLock(); // 잠금 해제
   } else {
     const err = document.getElementById('unlock-pw-err');
     if(err){ err.textContent='비밀번호가 틀렸어요'; setTimeout(()=>err.textContent='',1500); }
@@ -3854,10 +3863,9 @@ function openAdminPanel(){
   setTimeout(()=>document.getElementById('adm-pw-input')?.focus(), 100);
 }
 
-async function checkAdminPW(){
+function checkAdminPW(){
   const val = document.getElementById('adm-pw-input')?.value;
-  const h=await hashPW(val);
-  if(h===ADMIN_PW_HASH){
+  if(val === ADMIN_PW){
     adminUnlocked = true;
     document.getElementById('adm-pw-modal')?.remove();
     openWin('admin');
